@@ -7,10 +7,15 @@
 
 === Git Overview ===
 '''Installing git:''' http://help.github.com/mac-set-up-git/
+
 '''Initial pull:''' git clone git@github.com:tjsavage/cs221_final_project.git
+
 '''Pulling:''' git pull
+
 '''Adding files:''' git add [filename] #to add individual files
 git add -A #to stage all files
-#note that .gitignore will automatically ignore .pyc and .DS_Store files
+note that .gitignore will automatically ignore .pyc and .DS_Store files
+
 '''Committing:''' git commit -m "Your commit message"
+
 '''Pushing:''' git push 
