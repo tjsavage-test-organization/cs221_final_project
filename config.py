@@ -44,4 +44,4 @@ Partners = ['Partner Names']
 
 AgentArgs = {'first':'offense', 'second':'defense', 'third':'offense'}
 
-NotifyList = ['member1@stanford.edu','member2@stanford.edu', 'member3@stanford.edu']
+NotifyList = ['macqueen@stanford.edu','member2@stanford.edu', 'member3@stanford.edu']
