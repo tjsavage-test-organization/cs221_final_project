@@ -59,7 +59,8 @@ class AllOffenseAgents(AgentFactory):
     AgentFactory.__init__(self, **args)
 
   def getAgent(self, index):
-    return OffensiveReflexAgent(index)
+    return AIAgent(index)
+    "return OffensiveReflexAgent(index)"
 
 class OffenseDefenseAgents(AgentFactory):
   "Returns one keyboard agent and offensive reflex agents"
@@ -78,6 +79,48 @@ class OffenseDefenseAgents(AgentFactory):
 ##########
 # Agents #
 ##########
+
+class AIAgent(CaptureAgent):
+    
+    def __init__(self, index):
+        CaptureAgent.__init__(self, index)
+        self.enemyPos = list()
+        self.firstTurnComplete = False
+        self.legalPositions = list()
+        
+    
+    def chooseAction(self, gameState):
+        
+        if not self.firstTurnComplete:
+            self.firstTurnComplete = True
+            self.startingFood = len(self.getFoodYouAreDefending(gameState).asList())
+            self.theirStartingFood = len(self.getFood(gameState).asList())
+            agentDistances = gameState.getAgentDistances()
+            walls = gameState.getWalls()
+            wallList = walls.asList(False)
+            self.legalPositions = wallList
+            
+            
+            for p in self.legalPositions: self.beliefs[p] = 1.0
+            self.beliefs.normalize()
+    
+        """
+        Picks among the actions with the highest Q(s,a).
+        """
+        
+        for p in self.legalPositions
+        
+        actions = gameState.getLegalActions(self.index)
+
+        # You can profile your evaluation time by uncommenting these lines
+        # start = time.time()
+        #values = [self.evaluate(gameState, a) for a in actions]
+        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
+
+        #maxValue = max(values)
+        #bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        bestActions = self.getLegalActions(gameState)
+        return random.choice(bestActions)
 
 class ReflexCaptureAgent(CaptureAgent):
   def __init__(self, index):
