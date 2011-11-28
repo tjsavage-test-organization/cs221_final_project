@@ -15,6 +15,7 @@ import keyboardAgents
 import game
 from util import nearestPoint
 import regularMutation
+import math
 
 #############
 # FACTORIES #
@@ -59,6 +60,8 @@ class AllOffenseAgents(AgentFactory):
     AgentFactory.__init__(self, **args)
 
   def getAgent(self, index):
+    if index % 2 == 0:
+        return OffensiveReflexAgent(index)
     return AIAgent(index)
     "return OffensiveReflexAgent(index)"
 
@@ -87,7 +90,7 @@ class AIAgent(CaptureAgent):
         self.enemyPos = list()
         self.firstTurnComplete = False
         self.legalPositions = list()
-        
+
     
     def chooseAction(self, gameState):
         
@@ -100,15 +103,45 @@ class AIAgent(CaptureAgent):
             wallList = walls.asList(False)
             self.legalPositions = wallList
             
+            numAgents = gameState.getNumAgents()
+            enemies = self.getOpponents(gameState)
+            for enemy in enemies:
+                posCounter = util.Counter()
+                for p in self.legalPositions: posCounter[p] = 1.0
+                posCounter.normalize()
+                self.enemyPos.append((enemy,posCounter))
             
-            for p in self.legalPositions: self.beliefs[p] = 1.0
-            self.beliefs.normalize()
+            
     
         """
         Picks among the actions with the highest Q(s,a).
         """
         
-        for p in self.legalPositions
+        newEnemyPositions = list()
+        for enemy in self.enemyPos:
+            newPositions = util.Counter()
+            for p in self.legalPositions:
+                trueDistance = util.manhattanDistance(p, self.getPosition(gameState))
+                prior = enemy[1][p]
+                #print prior
+                
+                prob = math.log1p(gameState.getDistanceProb(trueDistance, gameState.getAgentDistances()[enemy[0]])) + math.log1p(prior)
+                newPositions[p] = prob
+                
+            newPositions.normalize()
+            newEnemyPositions.append((enemy[0], newPositions))
+                
+            
+        self.enemyPos = newEnemyPositions
+        print self.enemyPos
+        
+        counters = list()
+        for item in self.enemyPos:
+            counters.append(item[1])
+            
+        if self.index == 1 or self.index == 2: self.displayDistributionsOverPositions(counters)
+   
+            
         
         actions = gameState.getLegalActions(self.index)
 
