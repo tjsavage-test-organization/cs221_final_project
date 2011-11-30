@@ -1,5 +1,7 @@
 from captureAgents import CaptureAgent
 from baselineAgents import ReflexCaptureAgent
+from featureHandler import FeatureHandler
+import util
 
 class QLearningAgent(ReflexCaptureAgent):
     def __init__(self, index):
@@ -8,6 +10,8 @@ class QLearningAgent(ReflexCaptureAgent):
         self.startingFood = 0
         self.theirStartingFood = 0
         self.discount = .9
+        self.featureHandler = FeatureHandler()
+        self.agentType = 'basicQLearningAgent'
 
     def getFeatures(self, gameState, action):
         """
@@ -21,25 +25,38 @@ class QLearningAgent(ReflexCaptureAgent):
         Normally, weights do not depend on the gamestate.    They can be either
         a counter or a dictionary.
         """
-        return {'successorScore': 1.0}
+        return self.featureHandler.getFeatureWeights[self.agentType]
     
     def getReward(self, state):
         return 0
         
     def getValue(self, state);
-        return self.evaluate(state, self.chooseAction(state))
+        action = self.chooseAction(state)
+        if action == None:
+            return 0.0
+        return self.evaluate(state, self.getBestAction(state))
+    
+    def getBestAction(self, state):
+        return CaptureAgent.chooseAction(self, state)
+    
+    def chooseAction(self, state):
+        action = CaptureAgent.chooseAction(self, state)
+        self.update(state, action, 
         
-    def update(self, state, action, nextState, reward):
+    def update(self, state, action):
     """
        Should update your weights based on transition
     """
         "*** YOUR CODE HERE ***"
+        nextState = 
         features = self.getFeatures(state, action)
-                
+        weights = self.getWeights(self, state, action)
+        
         correction = (self.getReward(state) + self.discount * self.getValue(nextState)) - self.evaluate(state, action)
         for feature in features.keys():
-            self.weights[feature] += correction * self.getFeatures(state, action)[feature]
+            weights[feature] += correction * self.getFeatures(state, action)[feature]
 
+        self.featureHandler.updateFeatureWeights(weights)
     """
     Features (not the best features) which have learned weight values stored.
     """

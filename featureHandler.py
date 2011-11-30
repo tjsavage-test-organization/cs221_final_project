@@ -25,7 +25,7 @@ class FeatureHandler:
         self.writeFeatureVector()
     
     def getFeatureWeights(self, agentType):
-        return self.allFeatureVectors[self.agentName]
+        return self.allFeatureVectors[agentType]
     
     def writeFeatureVector(self):
         
