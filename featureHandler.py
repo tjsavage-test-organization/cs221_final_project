@@ -17,15 +17,7 @@ class FeatureHandler:
     
     def __init__(self):
         self.allFeatureVectors = {}
-        self.agentType = AgentEnums(agentType)
         self.readAllFeatureWeights()
-    
-    def updateFeatureWeights(self, features):
-        self.allFeatureVectors[str(self.agentType)] = features
-        self.writeFeatureVector()
-    
-    def getFeatureWeights(self, agentType):
-        return self.allFeatureVectors[self.agentName]
     
     def writeFeatureVector(self):
         
@@ -33,3 +25,15 @@ class FeatureHandler:
         for name, features in self.allFeatureVectors.items():
             f.write(name + ' = ' + str(features))
         f.close()
+    
+    def nameForAgent(agentType):
+        return str(AgentEnums(agentType))
+            
+    def updateFeatureWeights(self, features, agentType):
+        self.allFeatureVectors[nameForAgent(agentType)] = features
+        self.writeFeatureVector()
+    
+    def getFeatureWeights(self, agentType):
+        return self.allFeatureVectors[nameForAgent(agentType)]
+    
+    
