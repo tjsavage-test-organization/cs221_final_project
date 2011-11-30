@@ -1,6 +1,7 @@
 from captureAgents import CaptureAgent
 from baselineAgents import ReflexCaptureAgent
 from featureHandler import FeatureHandler
+from capture import GameState
 import util
 
 class QLearningAgent(ReflexCaptureAgent):
@@ -48,7 +49,7 @@ class QLearningAgent(ReflexCaptureAgent):
        Should update your weights based on transition
     """
         "*** YOUR CODE HERE ***"
-        nextState = 
+        nextState = gameState(prevState=state)
         features = self.getFeatures(state, action)
         weights = self.getWeights(self, state, action)
         

@@ -587,10 +587,10 @@ def readCommand( argv ):
   """
   parser = OptionParser(usageStr)
 
-  parser.add_option('-r', '--red', help=default('Red team'),
-                    default='teams/baselineAgents/')
-  parser.add_option('-b', '--blue', help=default('Blue team'),
-                    default='teams/baselineAgents/')
+  parser.add_option('-r', '--red', help=default('Red team'), dest='redconf',
+                    default='baselineAgents')
+  parser.add_option('-b', '--blue', help=default('Blue team'), dest='blueconf',
+                    default='baselineAgents')
   parser.add_option('--redOpts', help=default('Options for red team (e.g. first=keys)'),
                     default='')
   parser.add_option('--blueOpts', help=default('Options for blue team (e.g. first=keys)'),
@@ -666,10 +666,10 @@ def readCommand( argv ):
     redArgs['numTraining'] = options.numTraining
     blueArgs['numTraining'] = options.numTraining
   nokeyboard = options.textgraphics or options.quiet or options.numTraining > 0
-  print '\nRed team %s with %s:' % (options.red, redArgs)
-  redAgents = loadAgents(True, options.red, nokeyboard, redArgs)
-  print '\nBlue team %s with %s:' % (options.blue, blueArgs)
-  blueAgents = loadAgents(False, options.blue, nokeyboard, blueArgs)
+  print '\nRed team %s with %s:' % (options.redconf, redArgs)
+  redAgents = loadAgents(True, options.redconf, nokeyboard, redArgs)
+  print '\nBlue team %s with %s:' % (options.blueconf, blueArgs)
+  blueAgents = loadAgents(False, options.blueconf, nokeyboard, blueArgs)
   args['agents'] = sum([list(el) for el in zip(redAgents, blueAgents)],[]) # list of agents
   
   # Choose a layout
@@ -710,12 +710,10 @@ def loadAgents(isRed, factory, textgraphics, cmdLineArgs):
   # Looks through all pythonPath Directories for the right module
   import os
   dir = ''
-        
-  path_append = factory
-  sys.path.append(path_append)
   
   # Pick the dir with our team info
   path_append = None
+  
   dir = 'src/teams'
   if os.path.isdir(dir):
     path_append = dir
@@ -730,17 +728,33 @@ def loadAgents(isRed, factory, textgraphics, cmdLineArgs):
       if os.path.isdir(dir):
         path_append = dir
         sys.path.append(os.getcwd() + path_append)
+  
+  if os.path.isdir(factory):
+    sys.path.append(os.getcwd() + factory)
 
   if path_append is not None:
-    subdirs = os.listdir(path_append)
+    if os.path.isdir(path_append + factory):
+      sys.path.append(os.getcwd() + path_append + factory)
 
   try:
-    conf = __import__("config")
+    factoryName = factory
+    conf = __import__(factoryName + "Config")
     conf = reload(conf)
   except ImportError:
-    print 'Error: The team "' + factory + '" config could not be loaded! '
-    traceback.print_exc()
-    return [None for i in range(3)]
+    try:
+      # Try lower case first character
+      factoryName = factory[0].lower() + factory[1:]
+      conf = __import__(factoryName + "Config")
+      conf = reload(conf)
+    except ImportError:
+      try:
+        conf = __import__("config")
+        conf = reload(conf)
+      except ImportError:
+        print 'Error: The team "' + factory + '" config could not be loaded! '
+        print 'Config file load attempted on "' + factoryName + 'Config.py' + '" and "config.py".'
+        traceback.print_exc()
+        return [None for i in range(3)]
 
   factory = factory + "." + conf.AgentFactory
   args = dict(conf.AgentArgs)

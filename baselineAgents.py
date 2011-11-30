@@ -15,7 +15,6 @@ import keyboardAgents
 import game
 from util import nearestPoint
 import regularMutation
-import math
 
 #############
 # FACTORIES #
@@ -60,10 +59,7 @@ class AllOffenseAgents(AgentFactory):
     AgentFactory.__init__(self, **args)
 
   def getAgent(self, index):
-    if index % 2 == 0:
-        return OffensiveReflexAgent(index)
-    return AIAgent(index)
-    "return OffensiveReflexAgent(index)"
+    return OffensiveReflexAgent(index)
 
 class OffenseDefenseAgents(AgentFactory):
   "Returns one keyboard agent and offensive reflex agents"
@@ -82,78 +78,6 @@ class OffenseDefenseAgents(AgentFactory):
 ##########
 # Agents #
 ##########
-
-class AIAgent(CaptureAgent):
-    
-    def __init__(self, index):
-        CaptureAgent.__init__(self, index)
-        self.enemyPos = list()
-        self.firstTurnComplete = False
-        self.legalPositions = list()
-
-    
-    def chooseAction(self, gameState):
-        
-        if not self.firstTurnComplete:
-            self.firstTurnComplete = True
-            self.startingFood = len(self.getFoodYouAreDefending(gameState).asList())
-            self.theirStartingFood = len(self.getFood(gameState).asList())
-            agentDistances = gameState.getAgentDistances()
-            walls = gameState.getWalls()
-            wallList = walls.asList(False)
-            self.legalPositions = wallList
-            
-            numAgents = gameState.getNumAgents()
-            enemies = self.getOpponents(gameState)
-            for enemy in enemies:
-                posCounter = util.Counter()
-                for p in self.legalPositions: posCounter[p] = 1.0
-                posCounter.normalize()
-                self.enemyPos.append((enemy,posCounter))
-            
-            
-    
-        """
-        Picks among the actions with the highest Q(s,a).
-        """
-        
-        newEnemyPositions = list()
-        for enemy in self.enemyPos:
-            newPositions = util.Counter()
-            for p in self.legalPositions:
-                trueDistance = util.manhattanDistance(p, self.getPosition(gameState))
-                prior = enemy[1][p]
-                #print prior
-                
-                prob = math.log1p(gameState.getDistanceProb(trueDistance, gameState.getAgentDistances()[enemy[0]])) + math.log1p(prior)
-                newPositions[p] = prob
-                
-            newPositions.normalize()
-            newEnemyPositions.append((enemy[0], newPositions))
-                
-            
-        self.enemyPos = newEnemyPositions
-        print self.enemyPos
-        
-        counters = list()
-        for item in self.enemyPos:
-            counters.append(item[1])
-            
-        if self.index == 1 or self.index == 2: self.displayDistributionsOverPositions(counters)
-   
-            
-        
-        actions = gameState.getLegalActions(self.index)
-
-        # You can profile your evaluation time by uncommenting these lines
-        # start = time.time()
-        #values = [self.evaluate(gameState, a) for a in actions]
-        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
-
-        #maxValue = max(values)
-        #bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-        bestActions = self.getLegalActions(gameState)
-        return random.choice(bestActions)
 
 class ReflexCaptureAgent(CaptureAgent):
   def __init__(self, index):

@@ -306,7 +306,7 @@ class CaptureAgent(Agent):
     """
     if action in self.getLegalActions(gameState):
       pos = self.getPosition(gameState)
-      dx, dy = self.getDirectionalVector(self, action)
+      dx, dy = self.getDirectionalVector(action)
       return (int(pos[0]+dx),int(pos[1]+dy))
     else:
       return (None, None)
