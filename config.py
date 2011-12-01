@@ -7,41 +7,80 @@
 # For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
 
 """
+
 -----------------------
+
   Agent Configuration
+
 -----------------------
+
+
 
 Settings:
 
+
+
  - TeamName (string)
+
     The official name of your team. Names
+
     must be alpha-numeric only. Agents with
+
     invalid team names will not execute.
 
+
+
  - AgentFactory (string)
+
     The fully qualified name of the agent
+
     factory to execute.
 
+
+
  - AgentArgs (dict of string:string)
+
     Arguments to pass to the agent factory
 
+
+
  - NotifyList (list of strings)
+
     A list of email addresses to notify
+
     to when this agent competes.
+
  - Partners (list of strings)
+
     Group members who have contributed to
+
     this agent code and design.
+
+
 
 """
 
+
+
 # Alpha-Numeric only
+
 TeamName = 'MyTeamName'
 
+
+
 # Filename.FactoryClassName (CASE-sensitive)
-AgentFactory = 'baselineAgents.AllOffenseAgents'
+
+AgentFactory = 'qlearningAgent.QLearningAgentFactory'
+
+
 
 Partners = ['Rory MacQueen, Charlie Janac, Juan Lozano, Taylor Savage']
 
+
+
 AgentArgs = {'first':'offense', 'second':'defense', 'third':'offense'}
 
+
+
 NotifyList = ['macqueen@stanford.edu','member2@stanford.edu', 'member3@stanford.edu']
+

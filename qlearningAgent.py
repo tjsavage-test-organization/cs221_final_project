@@ -1,8 +1,12 @@
-from captureAgents import CaptureAgent
+from captureAgents import CaptureAgent, AgentFactory
 from baselineAgents import ReflexCaptureAgent
 from featureHandler import FeatureHandler
 from capture import GameState
-import util
+import util, random
+
+class QLearningAgentFactory(AgentFactory):
+    def getAgent(self, index):
+        return QLearningAgent(index)
 
 class QLearningAgent(ReflexCaptureAgent):
     def __init__(self, index):
@@ -31,7 +35,7 @@ class QLearningAgent(ReflexCaptureAgent):
     def getReward(self, state):
         return 0
         
-    def getValue(self, state);
+    def getValue(self, state):
         action = self.chooseAction(state)
         if action == None:
             return 0.0
@@ -41,15 +45,11 @@ class QLearningAgent(ReflexCaptureAgent):
         return CaptureAgent.chooseAction(self, state)
     
     def chooseAction(self, state):
+        return random.choice( state.getLegalActions( self.index ) )
         action = CaptureAgent.chooseAction(self, state)
-        self.update(state, action, 
+        self.update(state, action)
         
     def update(self, state, action):
-    """
-       Should update your weights based on transition
-    """
-        "*** YOUR CODE HERE ***"
-        nextState = gameState(prevState=state)
         features = self.getFeatures(state, action)
         weights = self.getWeights(self, state, action)
         
@@ -58,9 +58,7 @@ class QLearningAgent(ReflexCaptureAgent):
             weights[feature] += correction * self.getFeatures(state, action)[feature]
 
         self.featureHandler.updateFeatureWeights(weights)
-    """
-    Features (not the best features) which have learned weight values stored.
-    """
+
     def getMutationFeatures(self, gameState, action):
         features = util.Counter()
         successor = self.getSuccessor(gameState, action)

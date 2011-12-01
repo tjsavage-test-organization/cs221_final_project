@@ -1,18 +1,20 @@
 import ast
-import AgentEnums
-
+from agentEnums import AgentEnums 
 class FeatureHandler:
     
     
     def readAllFeatureWeights(self):
-        f = open('FeatureWeights.py', 'r')
-        for line in f:
-            partitionedLine = line.partition(' = ')
-            name = partitionedLine[0]
-            features = ast.literal_eval(partitionedLine[2])
-            self.allFeatureVectors[name] = features
-        
-        f.close()
+        try:
+            f = open('FeatureWeights.py', 'r')
+            for line in f:
+                partitionedLine = line.partition(' = ')
+                name = partitionedLine[0]
+                features = ast.literal_eval(partitionedLine[2])
+                self.allFeatureVectors[name] = features
+            
+            f.close()
+        except:
+            print "No FeatureWeights.py file present"
             
     
     def __init__(self):
