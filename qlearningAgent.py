@@ -1,24 +1,39 @@
 from captureAgents import CaptureAgent, AgentFactory
-from baselineAgents import ReflexCaptureAgent
+from baselineAgents import ReflexCaptureAgent, OffensiveReflexAgent
 from featureHandler import FeatureHandler
 from capture import GameState
+from game import Directions
+
 import util, random
-import highMutation
+import highMutation, regularMutation
 
 class QLearningAgentFactory(AgentFactory):
+    def __init__(self, isRed, first='offense', second='defense', third='offense', rest='offense', **args):
+        AgentFactory.__init__(self, isRed)
+        self.agents = [first, second, third]
+        self.rest = rest
+
     def getAgent(self, index):
-        return QLearningAgent(index)
+        if len(self.agents) > 0:
+            return self.choose(self.agents.pop(0), index)
+        else:
+            return self.choose(self.rest, index)
+
+    def choose(self, agentStr, index):
+        if agentStr == 'offense':
+            return AggressiveQLearningAgent(index)
+        elif agentStr == 'defense':
+            return DefensiveQLearningAgent(index)
+        else:
+            raise Exception("No staff agent identified by " + agentStr)
+
 
 class QLearningAgent(ReflexCaptureAgent):
     def __init__(self, index):
-        CaptureAgent.__init__(self, index)
-        self.firstTurnComplete = False
-        self.startingFood = 0
-        self.theirStartingFood = 0
+        ReflexCaptureAgent.__init__(self, index)
         self.discount = .9
         self.featureHandler = FeatureHandler()
-        self.agentType = 'basicQLearningAgent'
-        self.weights = highMutation.cautiousOWeightsDict
+        self.agentType = 'basicQlearningAgent'
         self.prevState = None
         self.prevAction = None
         
@@ -39,10 +54,11 @@ class QLearningAgent(ReflexCaptureAgent):
         Normally, weights do not depend on the gamestate.    They can be either
         a counter or a dictionary.
         """
-        return self.weights
+        weights = self.featureHandler.getFeatureWeights(self.agentType)
+        return weights
     
     def getReward(self, state):
-        return 0
+        return self.getScore(state)
         
     def getValue(self, state):
         action = self.getBestAction(state)
@@ -56,22 +72,24 @@ class QLearningAgent(ReflexCaptureAgent):
     def chooseAction(self, state):
         #return random.choice( state.getLegalActions( self.index ) )
         action = ReflexCaptureAgent.chooseAction(self, state)
-        if self.prevState and self.prevAction:
-            self.update(self.prevState, self.prevAction, state)
-        self.prevState = state
-        self.prevAction = action
-        print self.weights
+
+        self.update(state, action)
+    
         return action
         
-    def update(self, state, action, nextState):
-        features = self.getFeatures(state, action)
-        weights = self.getWeights(state, action)
         
-        correction = (self.getReward(state) + self.discount * self.getValue(nextState)) - self.evaluate(state, action)
+    def update(self, state, action):
+        nextState = state.generateSuccessor(self.index, action)
+        features = self.getFeatures(state, action)
+        weights = util.Counter(self.getWeights(state, action))
+        
+        correction = .01 * (self.getReward(state) + self.discount * self.getValue(nextState)) - self.evaluate(state, action)
         for feature in features.keys():
             weights[feature] += correction * self.getFeatures(state, action)[feature]
-
-        self.weights = weights
+        if self.index == 2:
+            print weights
+        weights.normalize()
+        self.featureHandler.updateFeatureWeights(weights, self.agentType)
 
     def getMutationFeatures(self, gameState, action):
         features = util.Counter()
@@ -120,3 +138,75 @@ class QLearningAgent(ReflexCaptureAgent):
             features['blockableFood'] = 1.0 if minDiffDistance < 1.0 else 0.0
 
         return features
+
+class AggressiveQLearningAgent(QLearningAgent):
+    def getFeatures(self, gameState, action):
+        features = self.getMutationFeatures(gameState, action)
+        successor = self.getSuccessor(gameState, action)
+    
+        features['successorScore'] = self.getScore(successor)
+        
+        # Compute distance to the nearest food
+        foodList = self.getFood(successor).asList()
+        features['numFood'] = len(foodList)
+        if len(foodList) > 0: # This should always be True,  but better safe than sorry
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance
+        return features
+    
+    def getWeights(self, gameState, action):
+        """
+        Normally, weights do not depend on the gamestate.    They can be either
+        a counter or a dictionary.
+        """
+        weights = self.featureHandler.getFeatureWeights(self.agentType)
+        weights['successorScore'] = 1.5
+        # Always eat nearby food
+        weights['numFood'] = -1000
+        # Favor reaching new food the most
+        weights['distanceToFood'] = -5
+        return weights
+
+class DefensiveQLearningAgent(QLearningAgent):
+    def getFeatures(self, gameState, action):
+        features = self.getMutationFeatures(gameState, action)
+        successor = self.getSuccessor(gameState, action)
+    
+        myState = successor.getAgentState(self.index)
+        myPos = myState.getPosition()
+    
+        # Computes whether we're on defense (1) or offense (0)
+        features['onDefense'] = 1
+        if myState.isPacman: features['onDefense'] = 0
+    
+        # Computes distance to invaders we can see
+        enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+        invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+        features['numInvaders'] = len(invaders)
+        if len(invaders) > 0:
+            dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+            features['invaderDistance'] = min(dists)
+    
+        if action == Directions.STOP: features['stop'] = 1
+        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+        if action == rev: features['reverse'] = 1
+        
+        foodList = self.getFoodYouAreDefending(successor).asList()
+        distance = 0
+        for food in foodList:
+            distance = distance + self.getMazeDistance(myPos, food)
+        features['totalDistancesToFood'] = distance
+    
+        return features
+
+    def getWeights(self, gameState, action):
+        weights = regularMutation.goalieDWeightsDict
+        weights['numInvaders'] = -100
+        weights['onDefense'] = 100
+        weights['invaderDistance'] = -1.5
+        weights['totalDistancesToFood'] = -0.1
+        weights['stop'] = -1
+        weights['reverse'] = -1
+        return weights
+    

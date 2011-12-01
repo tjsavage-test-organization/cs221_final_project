@@ -1,5 +1,8 @@
 import ast
 from agentEnums import AgentEnums 
+from highMutation import cautiousOWeightsDict
+import util
+
 class FeatureHandler:
     
     
@@ -9,16 +12,16 @@ class FeatureHandler:
             for line in f:
                 partitionedLine = line.partition(' = ')
                 name = partitionedLine[0]
-                features = ast.literal_eval(partitionedLine[2])
+                features = ast.literal_eval(util.Counter(partitionedLine[2]))
                 self.allFeatureVectors[name] = features
             
             f.close()
         except:
-            print "No FeatureWeights.py file present"
+            self.updateFeatureWeights(cautiousOWeightsDict, 'basicQlearningAgent')
             
     
     def __init__(self):
-        self.allFeatureVectors = {}
+        self.allFeatureVectors = util.Counter()
         self.readAllFeatureWeights()
     
     def writeFeatureVector(self):
@@ -32,10 +35,10 @@ class FeatureHandler:
         return str(AgentEnums(agentType))
             
     def updateFeatureWeights(self, features, agentType):
-        self.allFeatureVectors[nameForAgent(agentType)] = features
+        self.allFeatureVectors[agentType] = features
         self.writeFeatureVector()
     
     def getFeatureWeights(self, agentType):
-        return self.allFeatureVectors[nameForAgent(agentType)]
+        return self.allFeatureVectors[agentType]
     
     
