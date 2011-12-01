@@ -3,6 +3,7 @@ from baselineAgents import ReflexCaptureAgent
 from featureHandler import FeatureHandler
 from capture import GameState
 import util, random
+import highMutation
 
 class QLearningAgentFactory(AgentFactory):
     def getAgent(self, index):
@@ -17,6 +18,14 @@ class QLearningAgent(ReflexCaptureAgent):
         self.discount = .9
         self.featureHandler = FeatureHandler()
         self.agentType = 'basicQLearningAgent'
+        self.weights = highMutation.cautiousOWeightsDict
+        self.prevState = None
+        self.prevAction = None
+        
+    def registerInitialState(self, gameState):
+        CaptureAgent.registerInitialState(self, gameState)
+        self.prevState = gameState
+        self.prevAction = None
 
     def getFeatures(self, gameState, action):
         """
@@ -30,34 +39,39 @@ class QLearningAgent(ReflexCaptureAgent):
         Normally, weights do not depend on the gamestate.    They can be either
         a counter or a dictionary.
         """
-        return self.featureHandler.getFeatureWeights[self.agentType]
+        return self.weights
     
     def getReward(self, state):
         return 0
         
     def getValue(self, state):
-        action = self.chooseAction(state)
+        action = self.getBestAction(state)
         if action == None:
             return 0.0
-        return self.evaluate(state, self.getBestAction(state))
+        return self.evaluate(state, action)
     
     def getBestAction(self, state):
-        return CaptureAgent.chooseAction(self, state)
+        return ReflexCaptureAgent.chooseAction(self, state)
     
     def chooseAction(self, state):
-        return random.choice( state.getLegalActions( self.index ) )
-        action = CaptureAgent.chooseAction(self, state)
-        self.update(state, action)
+        #return random.choice( state.getLegalActions( self.index ) )
+        action = ReflexCaptureAgent.chooseAction(self, state)
+        if self.prevState and self.prevAction:
+            self.update(self.prevState, self.prevAction, state)
+        self.prevState = state
+        self.prevAction = action
+        print self.weights
+        return action
         
-    def update(self, state, action):
+    def update(self, state, action, nextState):
         features = self.getFeatures(state, action)
-        weights = self.getWeights(self, state, action)
+        weights = self.getWeights(state, action)
         
         correction = (self.getReward(state) + self.discount * self.getValue(nextState)) - self.evaluate(state, action)
         for feature in features.keys():
             weights[feature] += correction * self.getFeatures(state, action)[feature]
 
-        self.featureHandler.updateFeatureWeights(weights)
+        self.weights = weights
 
     def getMutationFeatures(self, gameState, action):
         features = util.Counter()
