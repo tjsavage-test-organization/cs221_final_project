@@ -35,32 +35,47 @@ class QLearningAgent(ReflexCaptureAgent):
         
         successor = self.getSuccessor(gameState, action)
         position = self.getPosition(gameState)
+        nextPosition = self.getPosition(successor)
+        nextPositionAsInt = self.getPositionAsInt(successor)
         
         
-        features = self.getMutationFeatures(gameState, action)
+        oldFeatures = self.getMutationFeatures(gameState, action)
         
         #features['isAgentInEnemyTerritory'] = self.isPositionInEnemyTerritory(successor, position)
         #features['isAgentAPacman'] = self.isPacman(successor)
         
         features = util.Counter()
+        for oldFeature, value in oldFeatures.items():
+            features[oldFeature] = value
         
         features['degreesOfFreedom'] = len(self.getLegalActions(successor))
         
+    
+        """avgFriendDist = 0.0
+        for fpos in self.getTeamPositions(successor):
+            avgFriendDist += self.getMazeDistance(position, fpos)
+        
+        avgFriendDist /= (len(self.getTeam(gameState)) - 1)
+         """   
+        features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (len(self.getTeam(gameState)) - 1)
         
         """features['numberOfEnemies'] = 0
             #for enemy in self.getOpponents(successor):
         features['numberOfEnemies'] += 1"""
           
         
-        defenseFoodDists = [self.getMazeDistance(position, foodPos) for foodPos in self.getFoodYouAreDefending(successor).asList()]        
-        features['numberOfYourFoodsRemaining'] = len(self.getFoodYouAreDefending(successor).asList())
+        defenseFoodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFoodYouAreDefending(successor).asList()]        
+        #features['numberOfYourFoodsRemaining'] = len(self.getFoodYouAreDefending(successor).asList())
         features['distanceToClosestYouFood'] = min(defenseFoodDists)
         
+        features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
         
-        foodDists = [self.getMazeDistance(position, foodPos) for foodPos in self.getFood(successor).asList()]
+        features['notMoving'] = 1.0 if position == nextPosition else 0.0
         
-        features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
-        features['distancetoClosestEnemyFood'] = min(foodDists)
+        foodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFood(successor).asList()]
+        
+        #features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
+        features['distancetoClosestEnemyFood'] = 0 if features['eatingFood'] > 0 else min(foodDists)
         #features['distanceToClosestFoodSquared'] = min(foodDists) ** 2
         
         return features
@@ -97,8 +112,24 @@ class QLearningAgent(ReflexCaptureAgent):
             self.registerInitialState(state)
             self.firstTurnComplete = True
         
-        action = ReflexCaptureAgent.chooseAction(self, state)
+
+        """
+        Picks among the actions with the highest Q(s,a).
+        """
+        actions = state.getLegalActions(self.index)
     
+        # You can profile your evaluation time by uncommenting these lines
+        # start = time.time()
+        values = [(a, self.evaluate(state, a)) for a in actions]
+        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
+    
+    
+        print 'VALUES: ' + str(values)  
+        maxValue = max(values, key=lambda val : val[1])
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+    
+        action = random.choice(bestActions)
+                
         self.update(state, action, self.getSuccessor(state, action))
       
                 
@@ -124,8 +155,11 @@ class QLearningAgent(ReflexCaptureAgent):
         if feature == 'numberOfYourFoodsRemaining': return 20
         if feature == 'numberOfEnemyFoodsRemaining': return -50
         if feature == 'distancetoClosestEnemyFood': return -100
-        if feature == 'distancetoClosestYouFood': return -50
-    
+        if feature == 'distanceToClosestYouFood': return -50
+        if feature == 'eatingFood': return 500
+        if feature == 'notMoving': return -500
+        if feature == 'avgFriendDist': return 100
+        
         return 0
         
     
@@ -141,7 +175,7 @@ class QLearningAgent(ReflexCaptureAgent):
                              
         for feature in features.keys():
             weights[feature] = weights[feature] + correction * self.alpha if feature in weights else self.getStartingWeight(feature)
-        
+        #weights[feature] = self.getStartingWeight(feature)
         #weights = self. dictNormalize(weights)
         
         self.weights = weights
