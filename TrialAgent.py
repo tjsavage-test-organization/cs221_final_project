@@ -75,13 +75,46 @@ class TrialAgent(OffensiveReflexAgent):
         
         return posDist
     
+    def getLegalNextPositions(self, gameState, position):
+        legalNextPositions = list()
+        legalNextPositions.append(position)
+        nextPos = (position[0] + 1, position[1])
+        if nextPos in TrialAgent.legalPositions: legalNextPositions.append(nextPos)
+        nextPos = (position[0] - 1, position[1])
+        if nextPos in TrialAgent.legalPositions: legalNextPositions.append(nextPos)
+        nextPos = (position[0], position[1] + 1)
+        if nextPos in TrialAgent.legalPositions: legalNextPositions.append(nextPos)
+        nextPos = (position[0], position[1] - 1)
+        if nextPos in TrialAgent.legalPositions: legalNextPositions.append(nextPos)
+        
+        return legalNextPositions
+        
+    def getClosestFood(self, gameState, position):
+        foodList = self.getFood(gameState).asList()
+        foodList.extend( (self.getFoodYouAreDefending(gameState)).asList() )
+        
+        distances = [self.getMazeDistance(position, food) for food in foodList]
+        i = distances.index(min(distances))
+        closestFood = foodList[i]
+        return closestFood                                                
+    
+    def nextPositionDist(self, gameState, position):
+        
+        allNextPos = util.Counter()
+        for nextPos in self.getLegalNextPositions(gameState, position):
+            closestFoodOfNextPos = self.getClosestFood(gameState, nextPos)
+            newDistance = self.getMazeDistance(nextPos, closestFoodOfNextPos)
+            allNextPos[nextPos] = newDistance
+        allNextPos.normalize()
+        return allNextPos
+        
+            
+        #minDistance = min([self.getMazeDistance(position, food) for food in foodList])
+    
     def elapseTime(self, gameState):
         newEnemyPositions = list()
-        for enemy in self.enemyPositions:
-            
+        for enemyIndex, beliefs in TrialAgent.enemyPositions.items():
             newPositions = util.Counter()
-            agentIndex = enemy[0]
-            beliefs = enemy[1]
             for p, probP in beliefs.items():
                 if probP == 0: continue
                 newPosDist = self.getPositionDistribution(gameState, p, agentIndex)
