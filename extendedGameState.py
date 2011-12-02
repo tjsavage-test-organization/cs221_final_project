@@ -31,8 +31,8 @@ class ExtendedGameState(GameState):
             return ExtendedGameState(GameState.generateSuccessor(self, agentIndex, action))
         
         nextPosForAgent = Actions.getSuccessor(self.positions[i], action)
-                
-        if self.hasWall(nextPosForAgent[0], nextPosForAgent[1]):
+        
+        if nextPosForAgent in Actions.getLegalNeighbors(self.positions[agentIndex], self.getWalls()):
             return self
         
         nextState = ExtendedGameState(self)
