@@ -19,7 +19,8 @@ class QLearningAgent(ReflexCaptureAgent):
         self.alpha = 0.002
         self.featureHandler = FeatureHandler()
         self.agentType = 'basicQLearningAgent'
-        self.weights = util.Counter()
+        self.weights = None
+        self.explorationRate = 0.3
     
     def registerInitialState(self, state):
         CaptureAgent.registerInitialState(self, state)
@@ -88,10 +89,29 @@ class QLearningAgent(ReflexCaptureAgent):
         #self.weights['numberOfEnemyFoodsRemaining'] = -10
         #self.weights['distancetoClosestEnemyFood'] = -150
         #self.weights['degreesOfFreedom'] = 25
+        
+        if self.weights == None:
+            self.weights = util.Counter()
+                #for feature in self.getFeatures(gameState, 'Stop'):
+            #self.weights[feature] = self.getStartingWeight(feature)
+            self.weights = self.featureHandler.getFeatureWeights('basicQlearningAgent')
+            print 'WEIGHTS'
+            print self.weights
+        
         return self.weights
     
     def getReward(self, state):
-        return self.getScore(state)
+        prevState = self.getPreviousObservation()
+        
+        if prevState == None: return 0
+        
+        reward = 0
+        
+        reward += (len(self.getFood(state).asList()) - len(self.getFood(prevState).asList())) * 5
+        
+        reward -= (len(self.getFoodYouAreDefending(state).asList()) - len(self.getFoodYouAreDefending(prevState).asList())) * 5
+        
+        return reward
     
     
     def getValue(self, state):
@@ -118,13 +138,16 @@ class QLearningAgent(ReflexCaptureAgent):
         """
         actions = state.getLegalActions(self.index)
     
+        if util.flipCoin(self.explorationRate):
+            return random.choice(actions)
+        
         # You can profile your evaluation time by uncommenting these lines
         # start = time.time()
         values = [(a, self.evaluate(state, a)) for a in actions]
         # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
     
     
-        print 'VALUES: ' + str(values)  
+        #print 'VALUES: ' + str(values)  
         maxValue = max(values, key=lambda val : val[1])
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
     
@@ -133,9 +156,9 @@ class QLearningAgent(ReflexCaptureAgent):
         self.update(state, action, self.getSuccessor(state, action))
       
                 
-        print 'Features: ' + str(self.getFeatures)
-        print 'Weights: ' + str(self.weights)
-        print 'Action: ' + str(action) + ' - ' + str(self.getPosition(state)) + '--->' + str(self.getPosition(self.getSuccessor(state, action)))
+        #print 'Features: ' + str(self.getFeatures)
+        #print 'Weights: ' + str(self.weights)
+        #print 'Action: ' + str(action) + ' - ' + str(self.getPosition(state)) + '--->' + str(self.getPosition(self.getSuccessor(state, action)))
         return action
     
     
@@ -151,14 +174,14 @@ class QLearningAgent(ReflexCaptureAgent):
         if feature in highMutation.cautiousOWeightsDict:
             return highMutation.cautiousOWeightsDict[feature]
             
-        if feature == 'degreesOfFreedom': return 50
-        if feature == 'numberOfYourFoodsRemaining': return 20
-        if feature == 'numberOfEnemyFoodsRemaining': return -50
-        if feature == 'distancetoClosestEnemyFood': return -100
-        if feature == 'distanceToClosestYouFood': return -50
-        if feature == 'eatingFood': return 500
-        if feature == 'notMoving': return -500
-        if feature == 'avgFriendDist': return 100
+        if feature == 'degreesOfFreedom': return 0.5
+        if feature == 'numberOfYourFoodsRemaining': return 0.25
+        if feature == 'numberOfEnemyFoodsRemaining': return -0.25
+        if feature == 'distancetoClosestEnemyFood': return -0.5
+        if feature == 'distanceToClosestYouFood': return -0.4
+        if feature == 'eatingFood': return 1
+        if feature == 'notMoving': return -1
+        if feature == 'avgFriendDist': return 0.25
         
         return 0
         
@@ -168,10 +191,10 @@ class QLearningAgent(ReflexCaptureAgent):
         weights = self.getWeights(state, action)
         
         correction = (self.getReward(state) + self.discount * self.getValue(nextState)) - self.evaluate(state, action)
-        print 'CORRECTION: ' + str(correction)
-        print 'REWARD: ' + str(self.getReward(state))
-        print 'NEXT VALUE: ' + str(self.getValue(nextState))
-        print 'EVAL: ' + str(self.evaluate(state, action))
+        #print 'CORRECTION: ' + str(correction)
+        #print 'REWARD: ' + str(self.getReward(state))
+        #print 'NEXT VALUE: ' + str(self.getValue(nextState))
+        #print 'EVAL: ' + str(self.evaluate(state, action))
                              
         for feature in features.keys():
             weights[feature] = weights[feature] + correction * self.alpha if feature in weights else self.getStartingWeight(feature)
