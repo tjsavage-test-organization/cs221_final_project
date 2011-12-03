@@ -25,6 +25,7 @@ class TrialAgent(OffensiveReflexAgent):
     
     enemyPositions = util.Counter()
     legalPositions = list()
+    legalNextPositions = util.Counter()
     firstTurn = True
     distancer = None
     enemyIndices = list()
@@ -40,6 +41,8 @@ class TrialAgent(OffensiveReflexAgent):
             TrialAgent.distancer = distanceCalculator.Distancer(gameState.data.layout)
             TrialAgent.distancer.useManhattanDistances()
             TrialAgent.legalPositions = gameState.getWalls().asList(False)
+            for pos in TrialAgent.legalPositions:
+                TrialAgent.legalNextPositions[pos] = self.getLegalNextPositions(gameState, pos)
             TrialAgent.enemyIndices = self.getOpponents(gameState)
             TrialAgent.allyIndices = self.getTeam(gameState)
             self.initializeUniformly(gameState)
@@ -92,38 +95,42 @@ class TrialAgent(OffensiveReflexAgent):
     def getClosestFood(self, gameState, position):
         foodList = self.getFood(gameState).asList()
         foodList.extend( (self.getFoodYouAreDefending(gameState)).asList() )
-        
         distances = [self.getMazeDistance(position, food) for food in foodList]
         i = distances.index(min(distances))
         closestFood = foodList[i]
         return closestFood                                                
     
     def nextPositionDist(self, gameState, position):
-        
+        print 'given position ' + str(position)
         allNextPos = util.Counter()
-        for nextPos in self.getLegalNextPositions(gameState, position):
+        nextPossiblePos = TrialAgent.getLegalNextPositions(self, gameState, position)
+        for nextPos in nextPossiblePos:
+            
             closestFoodOfNextPos = self.getClosestFood(gameState, nextPos)
+            print "closestFood " + str(closestFoodOfNextPos)
             newDistance = self.getMazeDistance(nextPos, closestFoodOfNextPos)
-            allNextPos[nextPos] = newDistance
+            print str(nextPos) + "     " + str(newDistance)
+            #allNextPos[nextPos] = newDistance
+            allNextPos[nextPos] = 1
         allNextPos.normalize()
+        print '----------end-----------'
         return allNextPos
         
             
         #minDistance = min([self.getMazeDistance(position, food) for food in foodList])
     
     def elapseTime(self, gameState):
-        newEnemyPositions = list()
+        newEnemiesP = util.Counter()
         for enemyIndex, beliefs in TrialAgent.enemyPositions.items():
-            newPositions = util.Counter()
+            newEnemyP = util.Counter()
             for p, probP in beliefs.items():
-                if probP == 0: continue
-                newPosDist = self.getPositionDistribution(gameState, p, agentIndex)
+                newPosDist = self.nextPositionDist(gameState, p)
                 for newPos, probNewPositionGivenP in newPosDist.items():
-                    newPositions[newPos] += math.log1p(probNewPositionGivenP) +  math.log1p(probP)
-                    
-            newPositions.normalize()
-            newEnemyPositions.append((agentIndex, newPositions))
-        self.enemyPositions = newEnemyPositions
+                    newEnemyP[newPos] += math.log1p(probNewPositionGivenP) +  math.log1p(probP)
+            newEnemyP.normalize()
+            newEnemiesP[enemyIndex] = newEnemyP
+
+        TrialAgent.enemyPositions = newEnemiesP
 
     def infer(self, gameState):
         newEnemyP = util.Counter()   
@@ -144,6 +151,8 @@ class TrialAgent(OffensiveReflexAgent):
                         
                     noisyDistance = myNoisyDistances[enemyIndex]
                     distProb = gameState.getDistanceProb(trueDistance, noisyDistance)
+                    if distProb == 0:
+                        continue
                     prob =  math.log1p(distProb)  + math.log1p(beliefs[p])
                     
                     dist.append(prob)
@@ -179,7 +188,6 @@ class TrialAgent(OffensiveReflexAgent):
         if self.index == TrialAgent.allyIndices[len(TrialAgent.allyIndices) - 1] :
             start = time.time()
             self.infer(gameState)
-            
             #self.elapseTime(gameState)
             counters = list()
         
