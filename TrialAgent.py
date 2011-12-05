@@ -53,6 +53,7 @@ class TrialAgent(DefensiveReflexAgent):
     #explorationRate = 0.3
     explorationRate = 0.0
     weights = None
+    currentGoal = util.Counter()
     
     def __init__(self, index):
         DefensiveReflexAgent.__init__(self, index)
@@ -74,6 +75,9 @@ class TrialAgent(DefensiveReflexAgent):
             TrialAgent.allyIndices = self.getTeam(gameState)
             self.initializeUniformly(gameState)
             TrialAgent.firstTurn = False
+            
+            for ally in TrialAgent.allyIndices:
+                TrialAgent.currentGoal[ally] = (-1, -1)
             
         
     def initializeUniformly(self, gameState):
@@ -346,21 +350,29 @@ class TrialAgent(DefensiveReflexAgent):
         bestAction = None
         for action in actions:
             valueForAction = 0
-            if depth == 3:
+            if depth == 2:
                 valueForAction = self.evaluate(gameState, action)
-                print "action " + str(action) + " value " + str(valueForAction) 
+                for ally, pos in TrialAgent.currentGoal.items():
+                    if gameState.getAgentPosition(self.index) is pos:
+                        valueForAction = -99999
+                #print "action " + str(action) + " value " + str(valueForAction) 
         
             else:
                 succ = self.getSuccessor(gameState, action)
                 valueForAction = self.evaluateDeep(succ, depth+1)[1] 
                 currentPosValue = self.evaluate(gameState, action)
-                valueForAction += currentPosValue
-                print "-------------------"
+                valueForAction = (0.5*valueForAction) + currentPosValue
+                #print "-------------------"
+            #if depth % 2 == 0: valueForAction = -1.0 * valueForAction
             if valueForAction >= maxValue:
                 maxValue = valueForAction
                 bestAction = action
+                if depth ==2:
+                    succ = self.getSuccessor(gameState, action)
+                    pos = succ.getAgentPosition(self.index)
+                    TrialAgent.currentGoal[self.index] = pos
                
-        if depth==0: print "action " + str(bestAction) + " max value " + str(maxValue) 
+        #if depth==0: print "action " + str(bestAction) + " max value " + str(maxValue) 
         return (bestAction, maxValue)
     
     def getMostLikelyPositionForEnemy(self, enemy):
@@ -550,11 +562,11 @@ class TrialAgent(DefensiveReflexAgent):
         if feature == 'distancetoClosestEnemyFood': return -25
         if feature == 'distanceToClosestYouFood': return -5
         if feature == 'eatingFood': return 250
-        if feature == 'notMoving': return -25
+        if feature == 'notMoving': return -50
 #if feature == 'avgFriendDist': return 0.25
         if feature == 'successorScore': return 1.25
         if feature == 'homeTerritory': return 10
-        if feature == 'reverse': return -10
+        if feature == 'reverse': return -50
         if feature == 'distanceToClosestEnemyAsGhost': return -25
         if feature == 'distanceToClosestEnemyAsPacman': return 2.5
         if feature == 'enemyGhostClose': return 35
@@ -582,9 +594,10 @@ class TrialAgent(DefensiveReflexAgent):
         
     def chooseAction(self, gameState):
         #print "index " + str(self.index)
+        start = time.time()
         self.observe(gameState)
         if self.index == TrialAgent.allyIndices[len(TrialAgent.allyIndices) - 1] :
-            start = time.time()
+            
             self.infer(gameState)
             self.trackLastPos(gameState)
             
@@ -611,17 +624,24 @@ class TrialAgent(DefensiveReflexAgent):
             
             # You can profile your evaluation time by uncommenting these lines
             # start = time.time()
-        values = [(a, self.evaluate(gameState, a)) for a in actions]
+        valueActionPair = self.evaluateDeep(gameState, 0)
+        action = valueActionPair[0]
+        #values = [(a, self.evaluateDeep(gameState, a,0)) for a in actions]
             # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
             
             
             #print 'VALUES: ' + str(values)  
-        maxValue = max(values, key=lambda val : val[1])
-        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        #maxValue = max(values, key=lambda val : val[1])
+        #bestActions = [a for a, v in zip(actions, values) if v == maxValue]
             
-        action = random.choice(bestActions)
+        #action = random.choice(bestActions)
             
         self.update(gameState, action, self.getSuccessor(gameState, action))
+        print "time " + str(time.time() - start)
+        if time.time() - start >= 0.95: print "too long!!!!!!!!"
+        if action == Directions.STOP:action = random.choice(actions)
+        
+        
         return action
 #        positions = util.Counter()
 #        for enemy in TrialAgent.enemyPositions:
@@ -690,19 +710,19 @@ class DefensiveTrialAgent(TrialAgent):
         
         features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
         
-        #features['notMoving'] = 1.0 if position == nextPosition else 0.0
+        features['notMoving'] = 1.0 if position == nextPosition else 0.0
         
         foodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFood(successor).asList()]
         
-        #features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
+        features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
         
-        #features['distancetoClosestEnemyFood'] = 0 if features['eatingFood'] > 0 else min(foodDists)
+        features['distancetoClosestEnemyFood'] = 0 if features['eatingFood'] > 0 else min(foodDists)
         
         features['distanceToClosestEnemyAsGhost'] = self.getClosestEnemyDist(gameState) if self.isGhost(gameState) else 0.0
         
-        #features['distanceToClosestEnemyAsPacman'] = self.getClosestEnemyDist(gameState) if self.isPacman(gameState) else 0.0
+        features['distanceToClosestEnemyAsPacman'] = self.getClosestEnemyDist(gameState) if self.isPacman(gameState) else 0.0
         
-        #features['enemyGhostClose'] = 1.0 if features['distanceToClosestEnemyAsPacman'] < 4 and features['distanceToClosestEnemyAsPacman'] > 0 else 0.0
+        features['enemyGhostClose'] = 1.0 if features['distanceToClosestEnemyAsPacman'] < 4 and features['distanceToClosestEnemyAsPacman'] > 0 else 0.0
         
         #features['distanceToClosestFoodSquared'] = min(foodDists) ** 2
         
