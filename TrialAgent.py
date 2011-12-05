@@ -157,8 +157,9 @@ class TrialAgent(DefensiveReflexAgent):
                     
                     dist.append(prob)
                 
-                
-                newEnemyP[enemyIndex][p] = sum(dist)
+                total = sum(dist)
+                if total is not 0:
+                    newEnemyP[enemyIndex][p] = total
                 
             
         newEnemyPos = util.Counter()
@@ -177,8 +178,9 @@ class TrialAgent(DefensiveReflexAgent):
             
                 
     def trackLastPos(self, gameState):
-        for enemy, dist in TrialAgent.enemyPositions.items():
+        for enemy in TrialAgent.enemyIndices:
             defPos = gameState.getAgentPosition(enemy)
+            dist = TrialAgent.enemyPositions[enemy]
             if defPos is not None:
                 intDefPos = (int(defPos[0]), int(defPos[1]))
                 posList = util.Counter()
@@ -227,6 +229,33 @@ class TrialAgent(DefensiveReflexAgent):
                         TrialAgent.enemyPositions[enemy][pos] += math.log1p(posDist[pos])
                         TrialAgent.enemyPositions[enemy].normalize()
                         TrialAgent.lastSightings[enemy] = 0
+            elif len(dist) < 30:
+                newPosDist = util.Counter()
+                for pos in dist:
+                    legalNext = TrialAgent.legalNextPositions[pos]
+                    probPerState = 1.0/(len(legalNext) + len(dist))
+                        
+                    pacman = False
+                    for ally in TrialAgent.allyIndices:
+                        pacman = gameState.getAgentState(ally).isPacman
+                        if pacman: break
+                            
+                    closestFood = 0
+                    if pacman: closestFood = self.getClosestFoodAll(gameState, pos)
+                    else: closestFood = self.getClosestFriendFood(gameState, pos)
+                        
+                    oldFoodDist = self.getMazeDistance(pos, closestFood)
+                    for newPos in legalNext:
+                        distance = self.getMazeDistance(newPos, closestFood)
+                        if distance <= oldFoodDist :
+                            newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + dist[pos]
+                newPosDist.normalize()
+                TrialAgent.enemyPositions[enemy] = newPosDist
+                counters = list()
+                newCounter = newPosDist.copy()
+                counters.append(newCounter)
+                self.displayDistributionsOverPositions(counters)
+                
                 
                     
     def observe(self, gameState):
@@ -552,15 +581,15 @@ class TrialAgent(DefensiveReflexAgent):
             self.infer(gameState)
             self.trackLastPos(gameState)
             
-            counters = list()
-        
-            counters.append(TrialAgent.enemyPositions[self.enemyIndices[0]]) 
-            if TrialAgent.lastSightings[self.enemyIndices[0]] is not 0 :
-                timeSince = TrialAgent.lastSightings[self.enemyIndices[0]][1]
-                if timeSince < 32:
-                    toDisplay = TrialAgent.lastSightings[self.enemyIndices[0]][0].copy()
-                    counters.append(toDisplay) 
-            self.displayDistributionsOverPositions(counters)
+#            counters = list()
+#        
+#            counters.append(TrialAgent.enemyPositions[self.enemyIndices[0]]) 
+#            if TrialAgent.lastSightings[self.enemyIndices[0]] is not 0 :
+#                timeSince = TrialAgent.lastSightings[self.enemyIndices[0]][1]
+#                if timeSince < 32:
+#                    toDisplay = TrialAgent.lastSightings[self.enemyIndices[0]][0].copy()
+#                    counters.append(toDisplay) 
+#            self.displayDistributionsOverPositions(counters)
             
         actions = gameState.getLegalActions(self.index)
             
