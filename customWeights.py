@@ -1,0 +1,2 @@
+offensiveAgentWeightsDict = {}
+defensiveAgentWeightsDict = {}

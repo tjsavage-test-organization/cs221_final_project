@@ -53,6 +53,7 @@ class TrialAgent(DefensiveReflexAgent):
     #explorationRate = 0.3
     explorationRate = 0.0
     weights = None
+    targetedFoods = {}
     
     def __init__(self, index):
         DefensiveReflexAgent.__init__(self, index)
@@ -400,7 +401,7 @@ class TrialAgent(DefensiveReflexAgent):
             #for oldFeature, value in oldFeatures.items():
         #features[oldFeature] = value
         
-        features['degreesOfFreedom'] = len(self.getLegalActions(successor))
+        #features['degreesOfFreedom'] = len(self.getLegalActions(successor))
         
         
         """avgFriendDist = 0.0
@@ -412,16 +413,16 @@ class TrialAgent(DefensiveReflexAgent):
         #features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (len(self.getTeam(gameState)) - 1)
         
             
-        features['successorScore'] = self.getScore(successor)
+        #features['successorScore'] = self.getScore(successor)
                 
         #computes territory
-        terr = self.getTerritoryAllies(successor)
-        features['homeTerritory'] = len(terr)
-        netDist = self.netDistanceToFriends(successor)
+        #terr = self.getTerritoryAllies(successor)
+        #features['homeTerritory'] = len(terr)
+        #netDist = self.netDistanceToFriends(successor)
         #features['netDistance'] = netDist
                 
-        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-        features['reverse'] = 1.0 if action == rev else 0.0
+        #rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+        #features['reverse'] = 1.0 if action == rev else 0.0
                 
             # Compute distance to the nearest food
         """foodList = self.getFood(successor).asList()
@@ -431,22 +432,30 @@ class TrialAgent(DefensiveReflexAgent):
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance"""
                 
-        defenseFoodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFoodYouAreDefending(successor).asList()]        
-        features['numberOfYourFoodsRemaining'] = len(self.getFoodYouAreDefending(successor).asList())
+        #defenseFoodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFoodYouAreDefending(successor).asList()]        
+        #features['numberOfYourFoodsRemaining'] = len(self.getFoodYouAreDefending(successor).asList())
         
         #print 'OUR FOOD LEFT: ' + str(features['numberOfYourFoodsRemaining'])
         
-        features['distanceToClosestYouFood'] = min(defenseFoodDists)
+        #features['distanceToClosestYouFood'] = min(defenseFoodDists)
         
         features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
         
-        features['notMoving'] = 1.0 if position == nextPosition else 0.0
+        #features['notMoving'] = 1.0 if position == nextPosition else 0.0
         
-        foodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFood(successor).asList()]
+        foodsTargetedByNotMe = [foodPos for index, foodPos in TrialAgent.targetedFoods.items() if index != self.index]
+        foodDistDict = {}
+        for foodPos in self.getFood(successor).asList():
+            if foodPos not in foodsTargetedByNotMe:
+                foodDistDict[foodPos] = self.getMazeDistance(nextPosition, foodPos)
+        foodDists = foodDistDict.values()
         
-        features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
+        
+        #features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
         
         features['distancetoClosestEnemyFood'] = 0 if features['eatingFood'] > 0 else min(foodDists)
+        foodDistDictSwap = dict(map(lambda val: (val[1], val[0]), foodDistDict.items()))
+        TrialAgent.targetedFoods[self.index] = foodDistDictSwap[min(foodDistDictSwap.keys())]
         
         features['distanceToClosestEnemyAsGhost'] = self.getClosestEnemyDist(gameState) if self.isGhost(gameState) else 0.0
         
@@ -455,7 +464,7 @@ class TrialAgent(DefensiveReflexAgent):
         features['enemyGhostClose'] = 1.0 if features['distanceToClosestEnemyAsPacman'] < 4 and features['distanceToClosestEnemyAsPacman'] > 0 else 0.0
         
         #features['distanceToClosestFoodSquared'] = min(foodDists) ** 2
-        
+        print features
         return features
     
     def getWeights(self, gameState, action):
@@ -483,15 +492,15 @@ class TrialAgent(DefensiveReflexAgent):
         if prevState == None: return 0
         
         reward = 0
+        if self.getPosition(state) in self.getFood(prevState).asList():
+            reward += 10
+            
+        #reward += (len(self.getFood(state).asList()) - len(self.getFood(prevState).asList()))
         
-        reward += (len(self.getFood(state).asList()) - len(self.getFood(prevState).asList())) * 25
-        
-        reward += (len(self.getCapsules(state)) - len(self.getCapsules(prevState))) * 25
-        
-        reward -= self.getScore(state)
-
-        
-        #reward -= (len(self.getFoodYouAreDefending(state).asList()) - len(self.getFoodYouAreDefending(prevState).asList())) * 5
+        prevPosition = self.getPosition(prevState)
+        currPosition = self.getPosition(state)
+        if self.getMazeDistance(prevPosition, currPosition) > 1:
+            reward -= 40
         
         return reward
     
