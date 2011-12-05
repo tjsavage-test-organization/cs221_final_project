@@ -140,36 +140,19 @@ class TrialAgent(DefensiveReflexAgent):
         return self.getClosestFood(gameState, position, foodList)  
     
     def nextPositionDist(self, gameState, position):
-        print 'given position ' + str(position)
         allNextPos = util.Counter()
         nextPossiblePos = TrialAgent.getLegalNextPositions(self, gameState, position)
         for nextPos in nextPossiblePos:
             
             closestFoodOfNextPos = self.getClosestFood(gameState, nextPos)
-            print "closestFood " + str(closestFoodOfNextPos)
             newDistance = self.getMazeDistance(nextPos, closestFoodOfNextPos)
-            print str(nextPos) + "     " + str(newDistance)
             allNextPos[nextPos] = newDistance
             #allNextPos[nextPos] = 1
         allNextPos.normalize()
-        print '----------end-----------'
         return allNextPos
         
             
-        #minDistance = min([self.getMazeDistance(position, food) for food in foodList])
-    
-    def elapseTime(self, gameState):
-        newEnemiesP = util.Counter()
-        for enemyIndex, beliefs in TrialAgent.enemyPositions.items():
-            newEnemyP = util.Counter()
-            for p, probP in beliefs.items():
-                newPosDist = self.nextPositionDist(gameState, p)
-                for newPos, probNewPositionGivenP in newPosDist.items():
-                    newEnemyP[newPos] += math.log1p(probNewPositionGivenP) +  math.log1p(probP)
-            newEnemyP.normalize()
-            newEnemiesP[enemyIndex] = newEnemyP
-
-        TrialAgent.enemyPositions = newEnemiesP
+ 
 
     def infer(self, gameState):
         newEnemyP = util.Counter()   
@@ -205,9 +188,6 @@ class TrialAgent(DefensiveReflexAgent):
             newBeliefs = util.Counter()
             if pos is not None: 
                 intPos = ( int(pos[0]), int(pos[1]) )
-                #print "pos " + str(pos)
-                #print "me " + str(self.getPosition(gameState))
-                if self.getPosition(gameState) is pos:print "same"
                 newBeliefs[intPos] = 1
                 
             else :    
@@ -224,34 +204,50 @@ class TrialAgent(DefensiveReflexAgent):
                 intDefPos = (int(defPos[0]), int(defPos[1]))
                 posList = util.Counter()
                 posList[intDefPos] = 1.0
-                TrialAgent.lastSightings[enemy] = (posList, 0)
+                TrialAgent.lastSightings[enemy] = (posList, 0, intDefPos)
             elif TrialAgent.lastSightings[enemy] is not 0:
                 posDist = TrialAgent.lastSightings[enemy][0]
                 #if enemy is self.enemyIndices[0]: print posDist
                 timeSinceObs = TrialAgent.lastSightings[enemy][1]
-                timeFactor = math.exp(-3*timeSinceObs)
+                posOriginalObs =  TrialAgent.lastSightings[enemy][2]
                 newPosDist = util.Counter()
                 for pos in posDist :
-                    legalNext = TrialAgent.legalNextPositions[pos]
-                    probPerState = 1.0/(len(legalNext) + len(posDist))
-                    
-                    pacman = False
-                    for ally in TrialAgent.allyIndices:
-                        pacman = gameState.getAgentState(ally).isPacman
-                        if pacman: break
+                    if timeSinceObs < 10:
+                        legalNext = TrialAgent.legalNextPositions[pos]
+                        probPerState = 1.0/(len(legalNext) + len(posDist))
                         
-                    closestFood = 0
-                    if pacman: closestFood = self.getClosestFoodAll(gameState, pos)
-                    else: closestFood = self.getClosestFriendFood(gameState, pos)
-                    
-                    oldFoodDist = self.getMazeDistance(pos, closestFood)
-                    for newPos in legalNext:
-                        distance = self.getMazeDistance(newPos, closestFood)
-                        if distance <= oldFoodDist :
-                            newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001))
-                newPosDist.normalize()
-                TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1)
-                
+                        pacman = False
+                        for ally in TrialAgent.allyIndices:
+                            pacman = gameState.getAgentState(ally).isPacman
+                            if pacman: break
+                            
+                        closestFood = 0
+                        if pacman: closestFood = self.getClosestFoodAll(gameState, pos)
+                        else: closestFood = self.getClosestFriendFood(gameState, pos)
+                        
+                        oldFoodDist = self.getMazeDistance(pos, closestFood)
+                        for newPos in legalNext:
+                            distance = self.getMazeDistance(newPos, closestFood)
+                            if distance <= oldFoodDist :
+                                newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001))
+                        newPosDist.normalize()
+                        TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1,posOriginalObs )
+                    elif timeSinceObs < 20 :
+                        maxNumMoves = 1 + int(timeSinceObs/len(TrialAgent.enemyIndices))
+                        maxXPos = posOriginalObs[0] + maxNumMoves
+                        minXPos = posOriginalObs[0] - maxNumMoves
+                        maxYPos = posOriginalObs[1] + maxNumMoves
+                        minYPos = posOriginalObs[1] - maxNumMoves
+                        for p in TrialAgent.legalPositions:
+                            if p[0] < maxXPos + 1 and p[0] > minXPos - 1 and p[1] < maxYPos + 1 and p[1] > minYPos - 1 :
+                                newPosDist[p] = 1.0
+                        newPosDist.normalize()
+                        
+                        TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1, posOriginalObs)
+                    else:
+                        TrialAgent.enemyPositions[enemy][pos] += math.log1p(posDist[pos])
+                        TrialAgent.enemyPositions[enemy].normalize()
+                        TrialAgent.lastSightings[enemy] = 0
                 
                     
     def observe(self, gameState):
@@ -590,7 +586,6 @@ class TrialAgent(DefensiveReflexAgent):
         if self.index == TrialAgent.allyIndices[len(TrialAgent.allyIndices) - 1] :
             start = time.time()
             self.infer(gameState)
-            #self.elapseTime(gameState)
             self.trackLastPos(gameState)
             
             counters = list()
@@ -627,7 +622,6 @@ class TrialAgent(DefensiveReflexAgent):
         action = random.choice(bestActions)
             
         self.update(gameState, action, self.getSuccessor(gameState, action))
-
         return action
 #        positions = util.Counter()
 #        for enemy in TrialAgent.enemyPositions:
