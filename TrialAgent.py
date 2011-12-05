@@ -211,7 +211,9 @@ class TrialAgent(DefensiveReflexAgent):
                             distance = self.getMazeDistance(newPos, closestFood)
                             if distance <= oldFoodDist :
                                 newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001))
+                                TrialAgent.enemyPositions[enemy][newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) 
                         newPosDist.normalize()
+                        TrialAgent.enemyPositions[enemy].normalize()
                         TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1,posOriginalObs )
                     elif timeSinceObs < 20 :
                         maxNumMoves = 1 + int(timeSinceObs/len(TrialAgent.enemyIndices))
@@ -222,6 +224,7 @@ class TrialAgent(DefensiveReflexAgent):
                         for p in TrialAgent.legalPositions:
                             if p[0] < maxXPos + 1 and p[0] > minXPos - 1 and p[1] < maxYPos + 1 and p[1] > minYPos - 1 :
                                 newPosDist[p] = 1.0
+                                TrialAgent.enemyPositions[enemy][p] += math.log1p(1/len(posDist))
                         newPosDist.normalize()
                         
                         TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1, posOriginalObs)
@@ -251,10 +254,10 @@ class TrialAgent(DefensiveReflexAgent):
                             newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + dist[pos]
                 newPosDist.normalize()
                 TrialAgent.enemyPositions[enemy] = newPosDist
-                counters = list()
-                newCounter = newPosDist.copy()
-                counters.append(newCounter)
-                self.displayDistributionsOverPositions(counters)
+#                counters = list()
+#                newCounter = newPosDist.copy()
+#                counters.append(newCounter)
+#                self.displayDistributionsOverPositions(counters)
                 
                 
                     
@@ -581,15 +584,15 @@ class TrialAgent(DefensiveReflexAgent):
             self.infer(gameState)
             self.trackLastPos(gameState)
             
-#            counters = list()
-#        
-#            counters.append(TrialAgent.enemyPositions[self.enemyIndices[0]]) 
+            counters = list()
+        
+            counters.append(TrialAgent.enemyPositions[self.enemyIndices[0]]) 
 #            if TrialAgent.lastSightings[self.enemyIndices[0]] is not 0 :
 #                timeSince = TrialAgent.lastSightings[self.enemyIndices[0]][1]
-#                if timeSince < 32:
+#                if timeSince < 50:
 #                    toDisplay = TrialAgent.lastSightings[self.enemyIndices[0]][0].copy()
 #                    counters.append(toDisplay) 
-#            self.displayDistributionsOverPositions(counters)
+            self.displayDistributionsOverPositions(counters)
             
         actions = gameState.getLegalActions(self.index)
             
