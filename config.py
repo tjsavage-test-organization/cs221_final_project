@@ -70,7 +70,7 @@ TeamName = 'MyTeamName'
 
 # Filename.FactoryClassName (CASE-sensitive)
 
-AgentFactory = 'qlearningAgent.QLearningAgentFactory'
+AgentFactory = 'TrialAgent.TrialAgentFactory'
 
 
 

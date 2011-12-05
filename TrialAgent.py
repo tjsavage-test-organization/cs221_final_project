@@ -15,13 +15,24 @@ import random, time, util, math
 from featureHandler import FeatureHandler
 
 class TrialAgentFactory(AgentFactory):
-  "Returns one keyboard agent and offensive reflex agents"
+    "Returns one keyboard agent and offensive reflex agents"
 
-  def __init__(self, **args):
-    AgentFactory.__init__(self, **args)
+    def __init__(self, isRed, first='offense', second='defense', third='offense', rest='offense', **args):
+        AgentFactory.__init__(self, isRed)
+        self.agents = [first, second, third]
+        self.rest = rest
 
-  def getAgent(self, index):
-    return TrialAgent(index)
+    def getAgent(self, index):
+        if len(self.agents) > 0:
+            return self.choose(self.agents.pop(0), index)
+        else:
+            return self.choose(self.rest, index)
+
+    def choose(self, agentStr, index):
+        if agentStr == 'offense':
+            return TrialAgent(index)
+        else:
+            return DefensiveTrialAgent(index)
 
 class TrialAgent(DefensiveReflexAgent):
     
@@ -598,7 +609,6 @@ class TrialAgent(DefensiveReflexAgent):
         
         
         
-        print self.index
         actions = gameState.getLegalActions(self.index)
             
         if util.flipCoin(TrialAgent.explorationRate):
@@ -642,7 +652,67 @@ class TrialAgent(DefensiveReflexAgent):
 #        #print (time.time() - start)
 #        return allActions.argMax()
         
+class DefensiveTrialAgent(TrialAgent):
+       def getFeatures(self, gameState, action):
+        """
+            Returns a counter of features for the state
+            """
         
+        successor = self.getSuccessor(gameState, action)
+        position = self.getPosition(gameState)
+        nextPosition = self.getPosition(successor)
+        nextPositionAsInt = self.getPositionAsInt(successor)
+        
+        features = util.Counter()
+  
+        features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (len(self.getTeam(gameState)) - 1)
+        
+            
+        features['successorScore'] = self.getScore(successor)
+                
+        #computes territory
+        terr = self.getTerritoryAllies(successor)
+        features['homeTerritory'] = len(terr)
+        netDist = self.netDistanceToFriends(successor)
+        #features['netDistance'] = netDist
+                
+        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+        features['reverse'] = 1.0 if action == rev else 0.0
+                
+            # Compute distance to the nearest food
+        """foodList = self.getFood(successor).asList()
+        features['numFood'] = len(foodList)
+        if len(foodList) > 0: # This should always be True,  but better safe than sorry
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance"""
+                
+        defenseFoodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFoodYouAreDefending(successor).asList()]        
+        features['numberOfYourFoodsRemaining'] = len(self.getFoodYouAreDefending(successor).asList())
+        
+        #print 'OUR FOOD LEFT: ' + str(features['numberOfYourFoodsRemaining'])
+        
+        features['distanceToClosestYouFood'] = min(defenseFoodDists)
+        
+        features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
+        
+        #features['notMoving'] = 1.0 if position == nextPosition else 0.0
+        
+        foodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFood(successor).asList()]
+        
+        #features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
+        
+        #features['distancetoClosestEnemyFood'] = 0 if features['eatingFood'] > 0 else min(foodDists)
+        
+        features['distanceToClosestEnemyAsGhost'] = self.getClosestEnemyDist(gameState) if self.isGhost(gameState) else 0.0
+        
+        #features['distanceToClosestEnemyAsPacman'] = self.getClosestEnemyDist(gameState) if self.isPacman(gameState) else 0.0
+        
+        #features['enemyGhostClose'] = 1.0 if features['distanceToClosestEnemyAsPacman'] < 4 and features['distanceToClosestEnemyAsPacman'] > 0 else 0.0
+        
+        #features['distanceToClosestFoodSquared'] = min(foodDists) ** 2
+        
+        return features
         
         
               
