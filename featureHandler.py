@@ -1,7 +1,7 @@
 import ast
 from agentEnums import AgentEnums 
 from highMutation import cautiousOWeightsDict, aggressiveDWeightsDict
-from customWeights import offensiveAgentWeightsDict, defensiveAgentWeightsDict
+from customInitialWeights import offensiveAgentWeightsDict, defensiveAgentWeightsDict
 import util
 
 class FeatureHandler:
@@ -18,8 +18,8 @@ class FeatureHandler:
             
             f.close()
         except:
-            self.updateFeatureWeights(offensiveAgentWeightsDict, 'basicQlearningAgent')
-            self.updateFeatureWeights(defensiveAgentWeightsDict, 'defensiveQLearningAgent')
+            self.updateFeatureWeights(offensiveAgentWeightsDict, 'offensiveAgentWeightsDict')
+            self.updateFeatureWeights(defensiveAgentWeightsDict, 'defensiveAgentWeightsDict')
             
     
     def __init__(self):

@@ -446,7 +446,8 @@ class TrialAgent(DefensiveReflexAgent):
         foodsTargetedByNotMe = [foodPos for index, foodPos in TrialAgent.targetedFoods.items() if index != self.index]
         foodDistDict = {}
         for foodPos in self.getFood(successor).asList():
-            if foodPos not in foodsTargetedByNotMe:
+            distancesFromFoodToTargetedFood = [self.getMazeDistance(foodPos, tfoodPos) for tfoodPos in foodsTargetedByNotMe]
+            if not len(distancesFromFoodToTargetedFood) or min(distancesFromFoodToTargetedFood) > 3:
                 foodDistDict[foodPos] = self.getMazeDistance(nextPosition, foodPos)
         foodDists = foodDistDict.values()
         
@@ -480,7 +481,7 @@ class TrialAgent(DefensiveReflexAgent):
             TrialAgent.weights = util.Counter()
                 #for feature in self.getFeatures(gameState, 'Stop'):
             #TrialAgent.weights[feature] = self.getStartingWeight(feature)
-            TrialAgent.weights = TrialAgent.featureHandler.getFeatureWeights('basicQlearningAgent')
+            TrialAgent.weights = TrialAgent.featureHandler.getFeatureWeights('offensiveAgentWeightsDict')
             print 'WEIGHTS'
             print TrialAgent.weights
         
@@ -574,8 +575,7 @@ class TrialAgent(DefensiveReflexAgent):
         
         return 0
     
-    
-    def update(self, state, action, nextState):
+    def updateWeights(self, state, action, nextState):
         features = self.getFeatures(state, action)
         weights = self.getWeights(state, action)
         
@@ -591,7 +591,11 @@ class TrialAgent(DefensiveReflexAgent):
         #weights = self. dictNormalize(weights)
         
         TrialAgent.weights = weights
-        TrialAgent.featureHandler.updateFeatureWeights(weights, 'basicQlearningAgent')
+        return weights
+        
+    def update(self, state, action, nextState):
+        weights = self.updateWeights(state, action, nextState)
+        TrialAgent.featureHandler.updateFeatureWeights(weights, 'offensiveAgentWeightsDict')
         
     def chooseAction(self, gameState):
         #print "index " + str(self.index)
@@ -662,7 +666,30 @@ class TrialAgent(DefensiveReflexAgent):
 #        return allActions.argMax()
         
 class DefensiveTrialAgent(TrialAgent):
-       def getFeatures(self, gameState, action):
+    def update(self, state, action, nextState):
+        weights = self.updateWeights(state, action, nextState)
+        TrialAgent.featureHandler.updateFeatureWeights(weights, 'defensiveAgentWeightsDict')
+        
+    def getWeights(self, gameState, action):
+        """
+            Normally, weights do not depend on the gamestate.    They can be either
+            a counter or a dictionary.
+            """
+        #self.weights['numberOfEnemyFoodsRemaining'] = -10
+        #self.weights['distancetoClosestEnemyFood'] = -150
+        #self.weights['degreesOfFreedom'] = 25
+        
+        if TrialAgent.weights == None:
+            TrialAgent.weights = util.Counter()
+                #for feature in self.getFeatures(gameState, 'Stop'):
+            #TrialAgent.weights[feature] = self.getStartingWeight(feature)
+            TrialAgent.weights = TrialAgent.featureHandler.getFeatureWeights('defensiveAgentWeightsDict')
+            print 'Defensive WEIGHTS'
+            print TrialAgent.weights
+        
+        return TrialAgent.weights
+           
+    def getFeatures(self, gameState, action):
         """
             Returns a counter of features for the state
             """
