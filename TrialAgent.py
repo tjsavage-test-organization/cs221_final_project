@@ -21,6 +21,7 @@ class TrialAgentFactory(AgentFactory):
     AgentFactory.__init__(self, **args)
 
   def getAgent(self, index):
+    
     return TrialAgent(index)
 
 class TrialAgent(DefensiveReflexAgent):
@@ -35,12 +36,12 @@ class TrialAgent(DefensiveReflexAgent):
     allyIndices = list()
     noisyDistances = util.Counter()
     lastSightings = util.Counter()
-    discount = .99
-    alpha = 0.0002
+    discount = .999
+    alpha = 0.0003
     featureHandler = FeatureHandler()
     agentType = 'basicQLearningAgent'
-    #explorationRate = 0.3
-    explorationRate = 0.0
+    explorationRate = 0.03
+    #explorationRate = 0.0
     weights = None
     
     def __init__(self, index):
@@ -360,11 +361,13 @@ class TrialAgent(DefensiveReflexAgent):
         return max([(p, TrialAgent.enemyPositions[enemy][p]) for p in TrialAgent.legalPositions], key = lambda x : x[1])[0]
     
     
+    def getClosestEnemyPos(self, gameState):
+        enemyPositions = [self.getMostLikelyPositionForEnemy(enemy) for enemy in TrialAgent.enemyIndices]
+        return min(enemyPositions, key = lambda ePos : self.getMazeDistance(self.getPosition(gameState), ePos))
+    
     def getClosestEnemyDist(self, gameState):
 
-        enemyPositions = [self.getMostLikelyPositionForEnemy(enemy) for enemy in TrialAgent.enemyIndices]
-        closestEnemy = min(enemyPositions, key = lambda ePos : self.getMazeDistance(self.getPosition(gameState), ePos))
-        return self.getMazeDistance(self.getPosition(gameState), closestEnemy)
+        return self.getMazeDistance(self.getPosition(gameState), self.getClosestEnemyPos(gameState))
         
         
     
@@ -389,7 +392,7 @@ class TrialAgent(DefensiveReflexAgent):
             #for oldFeature, value in oldFeatures.items():
         #features[oldFeature] = value
         
-        features['degreesOfFreedom'] = len(self.getLegalActions(successor))
+        features['degreesOfFreedom'] = len(self.getLegalActions(successor)) - 1
         
         
         """avgFriendDist = 0.0
@@ -420,28 +423,47 @@ class TrialAgent(DefensiveReflexAgent):
             minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
             features['distanceToFood'] = minDistance"""
                 
+        
         defenseFoodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFoodYouAreDefending(successor).asList()]        
-        features['numberOfYourFoodsRemaining'] = len(self.getFoodYouAreDefending(successor).asList())
+        features['percentOfOurFoodLeft'] = len(self.getFoodYouAreDefending(successor).asList()) / self.startingFood
         
         #print 'OUR FOOD LEFT: ' + str(features['numberOfYourFoodsRemaining'])
         
-        features['distanceToClosestYouFood'] = min(defenseFoodDists)
+        #features['distanceToClosestYouFood'] = min(defenseFoodDists)
         
         features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
         
         features['notMoving'] = 1.0 if position == nextPosition else 0.0
         
         foodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFood(successor).asList()]
+        oldFoodDists = [self.getMazeDistance(position, foodPos) for foodPos in self.getFood(gameState).asList()]
+
         
-        features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
+        features['percentOfTheirFoodLeft'] = len(self.getFood(successor).asList()) / self.theirStartingFood
         
-        features['distancetoClosestEnemyFood'] = 0 if features['eatingFood'] > 0 else min(foodDists)
+        features['movesCloserToEnemyFood'] = 1.0 if min(foodDists) < min(oldFoodDists) else 0.0
         
-        features['distanceToClosestEnemyAsGhost'] = self.getClosestEnemyDist(gameState) if self.isGhost(gameState) else 0.0
+        features['distancetoClosestEnemyFoodSquared'] = 36 if min(foodDists) > 5 else min(foodDists) ** 2
+        if features['eatingFood'] > 0: features['distancetoClosestEnemyFoodSquared'] = 0
         
-        features['distanceToClosestEnemyAsPacman'] = self.getClosestEnemyDist(gameState) if self.isPacman(gameState) else 0.0
+        closestEnemyPos = self.getClosestEnemyPos(gameState)
+        closestEnemy = self.getClosestEnemyDist(gameState)
+
+        attackingEnemy = closestEnemyPos ==  nextPosition
         
-        features['enemyGhostClose'] = 1.0 if features['distanceToClosestEnemyAsPacman'] < 4 and features['distanceToClosestEnemyAsPacman'] > 0 else 0.0
+        features['attackingEnemyAsGhost'] = 1.0 if closestEnemyPos ==  nextPosition else 0.0
+        features['attackingEnemyAsPacman'] = 1.0 if closestEnemyPos ==  nextPosition else 0.0
+        
+        if attackingEnemy:
+            features['distanceToClosestEnemyAsGhostSquared'] = 0        
+            features['distanceToClosestEnemyAsPacmanSquared'] = 0
+        else:
+            features['distanceToClosestEnemyAsGhostSquared'] = closestEnemy ** 2 if self.isGhost(gameState) and closestEnemy <= 5 else 36
+            features['distanceToClosestEnemyAsPacmanSquared'] = closestEnemy ** 2 if self.isPacman(gameState) and closestEnemy <= 3 else 16
+        
+        
+        
+        #features['enemyGhostClose'] = 1.0 if features['distanceToClosestEnemyAsPacman'] < 3 and features['distanceToClosestEnemyAsPacman'] > 0 else 0.0
         
         #features['distanceToClosestFoodSquared'] = min(foodDists) ** 2
         
@@ -477,8 +499,10 @@ class TrialAgent(DefensiveReflexAgent):
         
         reward += (len(self.getCapsules(state)) - len(self.getCapsules(prevState))) * 25
         
-        reward -= self.getScore(state)
-
+        #reward += self.getScore(state)
+        
+        if(self.getMazeDistance(self.getPosition(state), self.getPosition(prevState)) > 1):
+            reward -= 100
         
         #reward -= (len(self.getFoodYouAreDefending(state).asList()) - len(self.getFoodYouAreDefending(prevState).asList())) * 5
         
@@ -537,20 +561,22 @@ class TrialAgent(DefensiveReflexAgent):
         if feature in regularMutation.aggressiveDWeightsDict:
            return regularMutation.aggressiveDWeightsDict[feature]
         
-        if feature == 'degreesOfFreedom': return 5
-        if feature == 'numberOfYourFoodsRemaining': return 20
-        if feature == 'numberOfEnemyFoodsRemaining': return -20
-        if feature == 'distancetoClosestEnemyFood': return -25
-        if feature == 'distanceToClosestYouFood': return -5
-        if feature == 'eatingFood': return 250
+        if feature == 'degreesOfFreedom': return 1
+        if feature == 'percentOfOurFoodLeft': return 20
+        if feature == 'percentOfTheirFoodLeft': return -20
+        if feature == 'distancetoClosestEnemyFoodSquared': return -25
+        if feature == 'movesCloserToEnemyFood': return 50
+        if feature == 'eatingFood': return 1000
         if feature == 'notMoving': return -25
 #if feature == 'avgFriendDist': return 0.25
         if feature == 'successorScore': return 1.25
-        if feature == 'homeTerritory': return 10
+        if feature == 'homeTerritory': return 1
         if feature == 'reverse': return -10
-        if feature == 'distanceToClosestEnemyAsGhost': return -25
-        if feature == 'distanceToClosestEnemyAsPacman': return 2.5
-        if feature == 'enemyGhostClose': return 35
+        if feature == 'distanceToClosestEnemyAsGhostSquared': return -20
+        if feature == 'distanceToClosestEnemyAsPacmanSquared': return 50
+        #if feature == 'enemyGhostClose': return -50
+        if feature == 'attackingEnemyAsGhost': return 1000
+        if feature == 'attackingEnemyAsPacman': return -50
         
         return 0
     
@@ -559,11 +585,14 @@ class TrialAgent(DefensiveReflexAgent):
         features = self.getFeatures(state, action)
         weights = self.getWeights(state, action)
         
-        correction = (self.getReward(state) + TrialAgent.discount * self.getValue(nextState)) - self.evaluate(state, action)
-        """print 'CORRECTION: ' + str(correction)
+        #print features
+        #print weights
+        
+        correction = self.getReward(nextState) + (TrialAgent.discount * self.getValue(nextState)) - self.evaluate(state, action)
+        print 'CORRECTION: ' + str(correction)
         print 'REWARD: ' + str(self.getReward(state))
         print 'NEXT VALUE: ' + str(self.getValue(nextState))
-        print 'EVAL: ' + str(self.evaluate(state, action))"""
+        print 'EVAL: ' + str(self.evaluate(state, action))
         
         for feature in features.keys():
             weights[feature] = weights[feature] + correction * TrialAgent.alpha if feature in weights else self.getStartingWeight(feature)
