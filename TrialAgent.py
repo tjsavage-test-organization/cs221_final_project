@@ -15,14 +15,26 @@ import random, time, util, math
 from featureHandler import FeatureHandler
 
 class TrialAgentFactory(AgentFactory):
-  "Returns one keyboard agent and offensive reflex agents"
-
-  def __init__(self, **args):
-    AgentFactory.__init__(self, **args)
-
-  def getAgent(self, index):
+    "Returns one keyboard agent and offensive reflex agents"
     
-    return TrialAgent(index)
+    def __init__(self, isRed, first='offense', second='defense', third='offense', rest='offense', **args):
+        AgentFactory.__init__(self, isRed)
+        self.agents = [first, second, third]
+        self.rest = rest
+    
+    def getAgent(self, index):
+        if len(self.agents) > 0:
+            return self.choose(self.agents.pop(0), index)
+        else:
+            return self.choose(self.rest, index)
+    
+    def choose(self, agentStr, index):
+        if agentStr == 'offense':
+            return TrialAgent(index)
+        else:
+            return DefensiveTrialAgent(index)
+
+
 
 class TrialAgent(DefensiveReflexAgent):
     
@@ -43,6 +55,7 @@ class TrialAgent(DefensiveReflexAgent):
     explorationRate = 0.03
     #explorationRate = 0.0
     weights = None
+    currentGoal = util.Counter()
     
     def __init__(self, index):
         DefensiveReflexAgent.__init__(self, index)
@@ -64,6 +77,9 @@ class TrialAgent(DefensiveReflexAgent):
             TrialAgent.allyIndices = self.getTeam(gameState)
             self.initializeUniformly(gameState)
             TrialAgent.firstTurn = False
+            
+            for ally in TrialAgent.allyIndices:
+                TrialAgent.currentGoal[ally] = (-1, -1)
             
         
     def initializeUniformly(self, gameState):
@@ -130,36 +146,19 @@ class TrialAgent(DefensiveReflexAgent):
         return self.getClosestFood(gameState, position, foodList)  
     
     def nextPositionDist(self, gameState, position):
-        print 'given position ' + str(position)
         allNextPos = util.Counter()
         nextPossiblePos = TrialAgent.getLegalNextPositions(self, gameState, position)
         for nextPos in nextPossiblePos:
             
             closestFoodOfNextPos = self.getClosestFood(gameState, nextPos)
-            print "closestFood " + str(closestFoodOfNextPos)
             newDistance = self.getMazeDistance(nextPos, closestFoodOfNextPos)
-            print str(nextPos) + "     " + str(newDistance)
             allNextPos[nextPos] = newDistance
             #allNextPos[nextPos] = 1
         allNextPos.normalize()
-        print '----------end-----------'
         return allNextPos
         
             
-        #minDistance = min([self.getMazeDistance(position, food) for food in foodList])
-    
-    def elapseTime(self, gameState):
-        newEnemiesP = util.Counter()
-        for enemyIndex, beliefs in TrialAgent.enemyPositions.items():
-            newEnemyP = util.Counter()
-            for p, probP in beliefs.items():
-                newPosDist = self.nextPositionDist(gameState, p)
-                for newPos, probNewPositionGivenP in newPosDist.items():
-                    newEnemyP[newPos] += math.log1p(probNewPositionGivenP) +  math.log1p(probP)
-            newEnemyP.normalize()
-            newEnemiesP[enemyIndex] = newEnemyP
-
-        TrialAgent.enemyPositions = newEnemiesP
+ 
 
     def infer(self, gameState):
         newEnemyP = util.Counter()   
@@ -195,9 +194,6 @@ class TrialAgent(DefensiveReflexAgent):
             newBeliefs = util.Counter()
             if pos is not None: 
                 intPos = ( int(pos[0]), int(pos[1]) )
-                #print "pos " + str(pos)
-                #print "me " + str(self.getPosition(gameState))
-                if self.getPosition(gameState) is pos:print "same"
                 newBeliefs[intPos] = 1
                 
             else :    
@@ -214,34 +210,50 @@ class TrialAgent(DefensiveReflexAgent):
                 intDefPos = (int(defPos[0]), int(defPos[1]))
                 posList = util.Counter()
                 posList[intDefPos] = 1.0
-                TrialAgent.lastSightings[enemy] = (posList, 0)
+                TrialAgent.lastSightings[enemy] = (posList, 0, intDefPos)
             elif TrialAgent.lastSightings[enemy] is not 0:
                 posDist = TrialAgent.lastSightings[enemy][0]
                 #if enemy is self.enemyIndices[0]: print posDist
                 timeSinceObs = TrialAgent.lastSightings[enemy][1]
-                timeFactor = math.exp(-3*timeSinceObs)
+                posOriginalObs =  TrialAgent.lastSightings[enemy][2]
                 newPosDist = util.Counter()
                 for pos in posDist :
-                    legalNext = TrialAgent.legalNextPositions[pos]
-                    probPerState = 1.0/(len(legalNext) + len(posDist))
-                    
-                    pacman = False
-                    for ally in TrialAgent.allyIndices:
-                        pacman = gameState.getAgentState(ally).isPacman
-                        if pacman: break
+                    if timeSinceObs < 10:
+                        legalNext = TrialAgent.legalNextPositions[pos]
+                        probPerState = 1.0/(len(legalNext) + len(posDist))
                         
-                    closestFood = 0
-                    if pacman: closestFood = self.getClosestFoodAll(gameState, pos)
-                    else: closestFood = self.getClosestFriendFood(gameState, pos)
-                    
-                    oldFoodDist = self.getMazeDistance(pos, closestFood)
-                    for newPos in legalNext:
-                        distance = self.getMazeDistance(newPos, closestFood)
-                        if distance <= oldFoodDist :
-                            newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001))
-                newPosDist.normalize()
-                TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1)
-                
+                        pacman = False
+                        for ally in TrialAgent.allyIndices:
+                            pacman = gameState.getAgentState(ally).isPacman
+                            if pacman: break
+                            
+                        closestFood = 0
+                        if pacman: closestFood = self.getClosestFoodAll(gameState, pos)
+                        else: closestFood = self.getClosestFriendFood(gameState, pos)
+                        
+                        oldFoodDist = self.getMazeDistance(pos, closestFood)
+                        for newPos in legalNext:
+                            distance = self.getMazeDistance(newPos, closestFood)
+                            if distance <= oldFoodDist :
+                                newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001))
+                        newPosDist.normalize()
+                        TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1,posOriginalObs )
+                    elif timeSinceObs < 20 :
+                        maxNumMoves = 1 + int(timeSinceObs/len(TrialAgent.enemyIndices))
+                        maxXPos = posOriginalObs[0] + maxNumMoves
+                        minXPos = posOriginalObs[0] - maxNumMoves
+                        maxYPos = posOriginalObs[1] + maxNumMoves
+                        minYPos = posOriginalObs[1] - maxNumMoves
+                        for p in TrialAgent.legalPositions:
+                            if p[0] < maxXPos + 1 and p[0] > minXPos - 1 and p[1] < maxYPos + 1 and p[1] > minYPos - 1 :
+                                newPosDist[p] = 1.0
+                        newPosDist.normalize()
+                        
+                        TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1, posOriginalObs)
+                    else:
+                        TrialAgent.enemyPositions[enemy][pos] += math.log1p(posDist[pos])
+                        TrialAgent.enemyPositions[enemy].normalize()
+                        TrialAgent.lastSightings[enemy] = 0
                 
                     
     def observe(self, gameState):
@@ -340,21 +352,29 @@ class TrialAgent(DefensiveReflexAgent):
         bestAction = None
         for action in actions:
             valueForAction = 0
-            if depth == 3:
+            if depth == 2:
                 valueForAction = self.evaluate(gameState, action)
-                print "action " + str(action) + " value " + str(valueForAction) 
+                for ally, pos in TrialAgent.currentGoal.items():
+                    if gameState.getAgentPosition(self.index) is pos:
+                        valueForAction = -99999
+                #print "action " + str(action) + " value " + str(valueForAction) 
         
             else:
                 succ = self.getSuccessor(gameState, action)
                 valueForAction = self.evaluateDeep(succ, depth+1)[1] 
                 currentPosValue = self.evaluate(gameState, action)
-                valueForAction += currentPosValue
-                print "-------------------"
+                valueForAction = (0.5*valueForAction) + currentPosValue
+                #print "-------------------"
+            #if depth % 2 == 0: valueForAction = -1.0 * valueForAction
             if valueForAction >= maxValue:
                 maxValue = valueForAction
                 bestAction = action
+                if depth ==2:
+                    succ = self.getSuccessor(gameState, action)
+                    pos = succ.getAgentPosition(self.index)
+                    TrialAgent.currentGoal[self.index] = pos
                
-        if depth==0: print "action " + str(bestAction) + " max value " + str(maxValue) 
+        #if depth==0: print "action " + str(bestAction) + " max value " + str(maxValue) 
         return (bestAction, maxValue)
     
     def getMostLikelyPositionForEnemy(self, enemy):
@@ -577,6 +597,20 @@ class TrialAgent(DefensiveReflexAgent):
         #if feature == 'enemyGhostClose': return -50
         if feature == 'attackingEnemyAsGhost': return 1000
         if feature == 'attackingEnemyAsPacman': return -50
+        """if feature == 'degreesOfFreedom': return 5
+        if feature == 'numberOfYourFoodsRemaining': return 20
+        if feature == 'numberOfEnemyFoodsRemaining': return -20
+        if feature == 'distancetoClosestEnemyFood': return -25
+        if feature == 'distanceToClosestYouFood': return -5
+        if feature == 'eatingFood': return 250
+        if feature == 'notMoving': return -50
+#if feature == 'avgFriendDist': return 0.25
+        if feature == 'successorScore': return 1.25
+        if feature == 'homeTerritory': return 10
+        if feature == 'reverse': return -50
+        if feature == 'distanceToClosestEnemyAsGhost': return -25
+        if feature == 'distanceToClosestEnemyAsPacman': return 2.5
+        if feature == 'enemyGhostClose': return 35"""
         
         return 0
     
@@ -604,11 +638,11 @@ class TrialAgent(DefensiveReflexAgent):
         
     def chooseAction(self, gameState):
         #print "index " + str(self.index)
+        start = time.time()
         self.observe(gameState)
         if self.index == TrialAgent.allyIndices[len(TrialAgent.allyIndices) - 1] :
-            start = time.time()
+            
             self.infer(gameState)
-            #self.elapseTime(gameState)
             self.trackLastPos(gameState)
             
             counters = list()
@@ -627,7 +661,6 @@ class TrialAgent(DefensiveReflexAgent):
         
         
         
-        print self.index
         actions = gameState.getLegalActions(self.index)
             
         if util.flipCoin(TrialAgent.explorationRate):
@@ -635,18 +668,24 @@ class TrialAgent(DefensiveReflexAgent):
             
             # You can profile your evaluation time by uncommenting these lines
             # start = time.time()
-        values = [(a, self.evaluate(gameState, a)) for a in actions]
+        valueActionPair = self.evaluateDeep(gameState, 0)
+        action = valueActionPair[0]
+        #values = [(a, self.evaluateDeep(gameState, a,0)) for a in actions]
             # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
             
             
             #print 'VALUES: ' + str(values)  
-        maxValue = max(values, key=lambda val : val[1])
-        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        #maxValue = max(values, key=lambda val : val[1])
+        #bestActions = [a for a, v in zip(actions, values) if v == maxValue]
             
-        action = random.choice(bestActions)
+        #action = random.choice(bestActions)
             
         self.update(gameState, action, self.getSuccessor(gameState, action))
-
+        print "time " + str(time.time() - start)
+        if time.time() - start >= 0.95: print "too long!!!!!!!!"
+        if action == Directions.STOP:action = random.choice(actions)
+        
+        
         return action
 #        positions = util.Counter()
 #        for enemy in TrialAgent.enemyPositions:
@@ -671,7 +710,67 @@ class TrialAgent(DefensiveReflexAgent):
 #        #print (time.time() - start)
 #        return allActions.argMax()
         
+class DefensiveTrialAgent(TrialAgent):
+       def getFeatures(self, gameState, action):
+        """
+            Returns a counter of features for the state
+            """
         
+        successor = self.getSuccessor(gameState, action)
+        position = self.getPosition(gameState)
+        nextPosition = self.getPosition(successor)
+        nextPositionAsInt = self.getPositionAsInt(successor)
+        
+        features = util.Counter()
+  
+        features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (len(self.getTeam(gameState)) - 1)
+        
+            
+        features['successorScore'] = self.getScore(successor)
+                
+        #computes territory
+        terr = self.getTerritoryAllies(successor)
+        features['homeTerritory'] = len(terr)
+        netDist = self.netDistanceToFriends(successor)
+        #features['netDistance'] = netDist
+                
+        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+        features['reverse'] = 1.0 if action == rev else 0.0
+                
+            # Compute distance to the nearest food
+        """foodList = self.getFood(successor).asList()
+        features['numFood'] = len(foodList)
+        if len(foodList) > 0: # This should always be True,  but better safe than sorry
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance"""
+                
+        defenseFoodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFoodYouAreDefending(successor).asList()]        
+        features['numberOfYourFoodsRemaining'] = len(self.getFoodYouAreDefending(successor).asList())
+        
+        #print 'OUR FOOD LEFT: ' + str(features['numberOfYourFoodsRemaining'])
+        
+        features['distanceToClosestYouFood'] = min(defenseFoodDists)
+        
+        features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
+        
+        features['notMoving'] = 1.0 if position == nextPosition else 0.0
+        
+        foodDists = [self.getMazeDistance(nextPosition, foodPos) for foodPos in self.getFood(successor).asList()]
+        
+        features['numberOfEnemyFoodsRemaining'] = len(self.getFood(successor).asList())
+        
+        features['distancetoClosestEnemyFood'] = 0 if features['eatingFood'] > 0 else min(foodDists)
+        
+        features['distanceToClosestEnemyAsGhost'] = self.getClosestEnemyDist(gameState) if self.isGhost(gameState) else 0.0
+        
+        features['distanceToClosestEnemyAsPacman'] = self.getClosestEnemyDist(gameState) if self.isPacman(gameState) else 0.0
+        
+        features['enemyGhostClose'] = 1.0 if features['distanceToClosestEnemyAsPacman'] < 4 and features['distanceToClosestEnemyAsPacman'] > 0 else 0.0
+        
+        #features['distanceToClosestFoodSquared'] = min(foodDists) ** 2
+        
+        return features
         
         
               
