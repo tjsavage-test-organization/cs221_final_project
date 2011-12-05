@@ -70,11 +70,11 @@ TeamName = 'MyTeamName'
 
 # Filename.FactoryClassName (CASE-sensitive)
 
-AgentFactory = 'qlearningAgent.QLearningAgentFactory'
+AgentFactory = 'TrialAgent.TrialAgentFactory'
 
 
 
-Partners = ['Rory MacQueen, Charlie Janac, Juan Lozano, Taylor Savage']
+Partners = ['Rory MacQueen, Charlie Janac, Juan Lozano, Taylor Savage', 'Alex Eckert']
 
 
 
