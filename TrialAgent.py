@@ -688,6 +688,23 @@ class DefensiveTrialAgent(TrialAgent):
             print TrialAgent.weights
         
         return TrialAgent.weights
+    
+    def getReward(self, state):
+        prevState = self.getPreviousObservation()
+        
+        if prevState == None: return 0
+        
+        reward = 0
+            
+        #reward += (len(self.getFood(state).asList()) - len(self.getFood(prevState).asList()))
+        
+        prevPosition = self.getPosition(prevState)
+        currPosition = self.getPosition(state)
+        
+        if self.getClosestEnemyDist(prevState) == 1 and self.getClosestEnemyDist(state) > 4:
+            reward += 10
+        
+        return reward
            
     def getFeatures(self, gameState, action):
         """
@@ -701,10 +718,10 @@ class DefensiveTrialAgent(TrialAgent):
         
         features = util.Counter()
   
-        features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (len(self.getTeam(gameState)) - 1)
+        #features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (len(self.getTeam(gameState)) - 1)
         
             
-        features['successorScore'] = self.getScore(successor)
+        #features['successorScore'] = self.getScore(successor)
                 
         #computes territory
         terr = self.getTerritoryAllies(successor)
@@ -712,8 +729,8 @@ class DefensiveTrialAgent(TrialAgent):
         netDist = self.netDistanceToFriends(successor)
         #features['netDistance'] = netDist
                 
-        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-        features['reverse'] = 1.0 if action == rev else 0.0
+        #rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+        #features['reverse'] = 1.0 if action == rev else 0.0
                 
             # Compute distance to the nearest food
         """foodList = self.getFood(successor).asList()
@@ -730,7 +747,7 @@ class DefensiveTrialAgent(TrialAgent):
         
         features['distanceToClosestYouFood'] = min(defenseFoodDists)
         
-        features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
+        #features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
         
         #features['notMoving'] = 1.0 if position == nextPosition else 0.0
         
