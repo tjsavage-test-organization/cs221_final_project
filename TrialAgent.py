@@ -281,44 +281,6 @@ class TrialAgent(DefensiveReflexAgent):
             beliefs = TrialAgent.enemyPositions[enemy]
             enemyPos.append(beliefs.argMax())
         return enemyPos
-    
-    def getTerritoryAll(self, gameState):
-        friends = self.getTeamPositions(gameState)
-        enemyPosList = self.getListOfEnemyPos(gameState)
-        all = friends.extend(enemyPosList)
-        self.getTerritory(gameState, all)
-        
-    def getTerritoryAllies(self, gameState):
-        friends = self.getTeamPositions(gameState)
-        terr = self.getTerritory(gameState, friends)
-        return terr
-    #Returns all food items (and capsules) that I am closer to than any of my enemies:
-        
-    def getTerritoryEnemies(self, gameState):
-        enemyPosList = self.getListOfEnemyPos(gameState)
-        terr = self.getTerritory(gameState, enemyPosList)    
-        return terr
-    
-    def getTerritory(self, gameState, othersList):
-        foodList = self.getFood(gameState).asList()
-        foodList.extend( (self.getFoodYouAreDefending(gameState)).asList() )
-        territory = list()
-        myPos = self.getPosition(gameState)
-        for food in foodList:
-            myDistance = self.getMazeDistance(food, myPos)
-            meClosest = True
-            for i in range(len(othersList)):
-                mostLikelyPos = othersList[i]
-                
-                hisDistance = self.getMazeDistance(mostLikelyPos, food)
-                #if hisDistance < 20: print "distance between " + str(mostLikelyPos) + " and " + str(food) + " is " + str(hisDistance) 
-                
-                if myDistance > hisDistance:
-                    meClosest = False 
-                    break
-            if meClosest: territory.append(food)
-            
-        return territory
         
         
     def evaluateDeep(self, gameState, depth):
