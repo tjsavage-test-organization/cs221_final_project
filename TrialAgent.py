@@ -64,7 +64,7 @@ class TrialAgent(DefensiveReflexAgent):
         DefensiveReflexAgent.__init__(self, index)
         if offense:
             self.myNotFeatures = [ 'eatingEnemy','distanceToClosestEnemyAsGhostSquared', 'attackingEnemyAsGhost',
-                               'numberOfYourFoodsRemaining', 'homeTerritory', 'distanceToClosestEnemyAsGhost']
+                               'numberOfYourFoodsRemaining', 'homeTerritory', 'distanceToClosestEnemyAsGhost', 'isPacman']
         else:
             self.myNotFeatures = [ 'distancetoClosestEnemyFoodSquared', 'gettingEaten'
                                    'distanceToClosestEnemyAsPacmanSquared', 'attackingEnemyAsPacman',
@@ -432,13 +432,15 @@ class TrialAgent(DefensiveReflexAgent):
         features['numberOfEnemyFoodsRemaining'] = numEnemyFood
         features['numberOfYourFoodsRemaining'] = numOurFood
         features['distancetoClosestEnemyFoodSquared'] = minTheirDistance ** 2
+        
         features['homeTerritory'] = homeTerritoryCount
         #netDist = self.netDistanceToFriends(successor)
         
         if features['eatingFood'] > 0:
             features['distancetoClosestEnemyFoodSquared'] = 0
-            enemyTerritoryCount += 1
+            enemyTerritoryCount *= 5
         features['enemyTerritory'] = enemyTerritoryCount
+        if minTheirDistance < 4: features['enemyTerritory'] *= (5 - minTheirDistance)
         
     
     def getFeatures(self, gameState, action):
@@ -467,8 +469,10 @@ class TrialAgent(DefensiveReflexAgent):
         
         features['notMoving'] = 1.0 if position == nextPosition else 0.0
         
-        closestEnemyPos = self.getClosestEnemyPos(successor)
-        closestEnemy = self.getClosestEnemyDist(successor)
+        closestEnemyPos = self.getClosestEnemyPos(gameState)
+        closestEnemy = self.getClosestEnemyDist(gameState)
+        
+        if closestEnemy < 3: features['homeTerritory'] *= (4 - closestEnemy)
         
         features['eatingEnemy'] = 0.0
         features['gettingEaten'] = 0.0
@@ -477,6 +481,7 @@ class TrialAgent(DefensiveReflexAgent):
             if oldEnemyPos == nextPosition:
                 if self.isGhost(successor) and self.getScaredTimer(successor) <= 0:
                     features['eatingEnemy'] = 1.0
+                    features['homeTerritory'] *= 4
                 
         if self.getMazeDistance(position, nextPosition) > 1:
             features['gettingEaten'] = 1.0
@@ -490,17 +495,17 @@ class TrialAgent(DefensiveReflexAgent):
             features['distanceToClosestEnemyAsGhostSquared'] = 0        
             features['distanceToClosestEnemyAsPacmanSquared'] = 0
         else:
-            if self.isGhost(successor):
-                features['distanceToClosestEnemyAsGhostSquared'] = closestEnemy ** 2
-                
-            else:
-                features['distanceToClosestEnemyAsPacmanSquared'] = closestEnemy ** 2
-                if features['distanceToClosestEnemyAsPacmanSquared'] <= 9:
-                    features['enemyGhostClose'] = 1.0 
+            features['distanceToClosestEnemyAsGhostSquared'] = closestEnemy ** 2
+            features['distanceToClosestEnemyAsPacmanSquared'] = closestEnemy ** 2
+            if features['distanceToClosestEnemyAsPacmanSquared'] <= 9:
+                features['enemyGhostClose'] = 1.0 
                 
         
+        if self.isPacman(successor): features['isPacman'] = 1.0
+        else: features['isPacman'] = 0
+        
+        
         features = self.pruneFeatures(features)
-        if 'eatingEnemy' in self.myNotFeatures: print features 
         
         return features
     
@@ -518,9 +523,9 @@ class TrialAgent(DefensiveReflexAgent):
             """
         if TrialAgent.weights == None:
             TrialAgent.weights = util.Counter()
-                #for feature in self.getFeatures(gameState, 'Stop'):
-            #TrialAgent.weights[feature] = self.getStartingWeight(feature)
-            TrialAgent.weights = TrialAgent.featureHandler.getFeatureWeights('basicQlearningAgent')
+            for feature in self.getFeatures(gameState, 'Stop'):
+                TrialAgent.weights[feature] = self.getStartingWeight(feature)
+            #TrialAgent.weights = TrialAgent.featureHandler.getFeatureWeights('basicQlearningAgent')
         
         return TrialAgent.weights
     
@@ -572,7 +577,7 @@ class TrialAgent(DefensiveReflexAgent):
         if feature == 'reverse': return -1.0
         if feature == 'distanceToClosestEnemyAsGhostSquared': return -1.0
         if feature == 'distanceToClosestEnemyAsPacmanSquared': return 1.0
-        
+        if feature == 'isPacman': return -1000000
         if feature == 'attackingEnemyAsGhost': return 1.0
         if feature == 'attackingEnemyAsPacman': return -1.0
         if feature == 'numberOfYourFoodsRemaining': return 1.0
@@ -636,7 +641,7 @@ class TrialAgent(DefensiveReflexAgent):
         actions = self.getLegalActions(gameState)
         #action = random.choice(bestActions)    
             
-        self.update(gameState, action, self.getSuccessor(gameState, action))
+        #self.update(gameState, action, self.getSuccessor(gameState, action))
         
         while action == Directions.STOP:
             action = random.choice(actions)
