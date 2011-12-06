@@ -401,6 +401,9 @@ class TrialAgent(DefensiveReflexAgent):
                     meClosest = False 
                     break
             if meClosest: enemyTerritoryCount +=1
+        
+        if food:
+            TrialAgent.targetedFoods[self.index] = food
             
         for capsule in self.getCapsules(successor):
             distance = self.getMazeDistance(nextPosition, capsule)
