@@ -518,8 +518,8 @@ class TrialAgent(DefensiveReflexAgent):
         
         reward = 0
         
-        reward += (len(self.getFood(state).asList()) - len(self.getFood(prevState).asList())) * 25
-        
+        #reward += (len(self.getFood(state).asList()) - len(self.getFood(prevState).asList())) * 25
+        reward += 25 if self.getPosition(state) in self.getFood(prevState).asList() else 0
         reward += (len(self.getCapsules(state)) - len(self.getCapsules(prevState))) * 25
         
         #reward += self.getScore(state)

@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: tkinter-pypy
+Version: 0.1
+Summary: Python interface to Tk GUI toolkit (for PyPy)
+Home-page: http://bitbucket.org/pypy/tkinter/
+Author: Python development team and PyPy development team
+Author-email: pypy-dev@codespeak.net
+License: Modified CNRI Open Source License
+Description: UNKNOWN
+Platform: UNKNOWN
