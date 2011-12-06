@@ -202,7 +202,7 @@ class TrialAgent(DefensiveReflexAgent):
                 posOriginalObs =  TrialAgent.lastSightings[enemy][2]
                 newPosDist = util.Counter()
                 for pos in posDist :
-                    if timeSinceObs < 10:
+                    if timeSinceObs < 20:
                         legalNext = TrialAgent.legalNextPositions[pos]
                         probPerState = 1.0/(len(legalNext) + len(posDist))
                         
@@ -224,19 +224,6 @@ class TrialAgent(DefensiveReflexAgent):
                         newPosDist.normalize()
                         TrialAgent.enemyPositions[enemy].normalize()
                         TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1,posOriginalObs )
-                    elif timeSinceObs < 20 :
-                        maxNumMoves = len(TrialAgent.enemyIndices) + int(timeSinceObs/len(TrialAgent.enemyIndices))
-                        maxXPos = posOriginalObs[0] + maxNumMoves
-                        minXPos = posOriginalObs[0] - maxNumMoves
-                        maxYPos = posOriginalObs[1] + maxNumMoves
-                        minYPos = posOriginalObs[1] - maxNumMoves
-                        for p in TrialAgent.legalPositions:
-                            if p[0] < maxXPos + 1 and p[0] > minXPos - 1 and p[1] < maxYPos + 1 and p[1] > minYPos - 1 :
-                                newPosDist[p] = 1.0
-                                TrialAgent.enemyPositions[enemy][p] += math.log1p(1/len(posDist)) 
-                        newPosDist.normalize()
-                        
-                        TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1, posOriginalObs)
                     else:
                         TrialAgent.enemyPositions[enemy][pos] += math.log1p(posDist[pos])
                         TrialAgent.enemyPositions[enemy].normalize()
