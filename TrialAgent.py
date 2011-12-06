@@ -59,6 +59,7 @@ class TrialAgent(DefensiveReflexAgent):
     lastAgent = None
     numAllies = None
     targetedFoods = {}
+    defenseIndex = list()
     
     def __init__(self, index, offense):
         DefensiveReflexAgent.__init__(self, index)
@@ -66,10 +67,11 @@ class TrialAgent(DefensiveReflexAgent):
             self.myNotFeatures = [ 'eatingEnemy','distanceToClosestEnemyAsGhostSquared', 'attackingEnemyAsGhost',
                                'numberOfYourFoodsRemaining', 'homeTerritory', 'distanceToClosestEnemyAsGhost', 'isPacman']
         else:
+            TrialAgent.defenseIndex.append(index)
             self.myNotFeatures = [ 'distancetoClosestEnemyFoodSquared', 'gettingEaten'
                                    'distanceToClosestEnemyAsPacmanSquared', 'attackingEnemyAsPacman',
                                    'numberOfEnemyFoodsRemaining','distancetoClosestEnemyFood','enemyTerritory',
-                                   'distanceToClosestEnemyAsPacman','enemyGhostClose']
+                                   'distanceToClosestEnemyAsPacman','enemyGhostClose', 'distanceToFriends']
         
         
     def registerInitialState(self, gameState):
@@ -92,6 +94,7 @@ class TrialAgent(DefensiveReflexAgent):
             TrialAgent.numAllies = len(TrialAgent.allyIndices)
             for ally in TrialAgent.allyIndices:
                 TrialAgent.currentGoal[ally] = (-1, -1)
+            TrialAgent.defenseIndex = list()
             
         
     def initializeUniformly(self, gameState):
@@ -263,11 +266,14 @@ class TrialAgent(DefensiveReflexAgent):
       
     
     def netDistanceToFriends(self, gameState):
+        positions = [(index, gameState.getAgentPosition(index)) for index in self.allyIndices]
+    
         friends = self.getTeamPositions(gameState)
         myPos = self.getPosition(gameState)
         netDistance = 0
-        for ally in friends:
-            netDistance += self.getMazeDistance(ally, myPos)
+        for index, pos in positions:
+            if index in TrialAgent.defenseIndex: continue
+            netDistance += self.getMazeDistance(pos, myPos)
         return netDistance
     
     def getListOfEnemyPos(self, gameState):
@@ -421,7 +427,7 @@ class TrialAgent(DefensiveReflexAgent):
         features['distancetoClosestEnemyFoodSquared'] = minTheirDistance ** 2
         
         features['homeTerritory'] = homeTerritoryCount
-        #netDist = self.netDistanceToFriends(successor)
+        
         
         if features['eatingFood'] > 0:
             features['distancetoClosestEnemyFoodSquared'] = 0
@@ -491,6 +497,8 @@ class TrialAgent(DefensiveReflexAgent):
         if self.isPacman(successor): features['isPacman'] = 1.0
         else: features['isPacman'] = 0
         
+        netDist = self.netDistanceToFriends(successor)
+        features['distanceToFriends'] = netDist
         
         features = self.pruneFeatures(features)
         
@@ -557,7 +565,7 @@ class TrialAgent(DefensiveReflexAgent):
         if feature == 'distancetoClosestEnemyFoodSquared': return -1
         if feature == 'eatingFood': return 100
         if feature == 'eatingEnemy': return 100
-        if feature == 'gettingEaten': return -10
+        if feature == 'gettingEaten': return -100
         if feature == 'notMoving': return -1.0
         if feature == 'avgFriendDist': return 1.0
         if feature == 'successorScore': return 0
@@ -576,6 +584,7 @@ class TrialAgent(DefensiveReflexAgent):
         if feature == 'distanceToClosestEnemyAsPacman': return 1.0
         if feature == 'enemyGhostClose': return -1.0
         if feature == 'closestFriend': return 1.0
+        if feature == 'distanceToFriends': return 1.0
         
         return 0
     
