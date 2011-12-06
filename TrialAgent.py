@@ -17,7 +17,7 @@ from featureHandler import FeatureHandler
 class TrialAgentFactory(AgentFactory):
     "Returns one keyboard agent and offensive reflex agents"
     
-    def __init__(self, isRed, first='offense', second='offense', third='offense', rest='offense', **args):
+    def __init__(self, isRed, first='offense', second='defense', third='offense', rest='offense', **args):
         AgentFactory.__init__(self, isRed)
         self.agents = [first, second, third]
         self.rest = rest
@@ -30,9 +30,9 @@ class TrialAgentFactory(AgentFactory):
     
     def choose(self, agentStr, index):
         if agentStr == 'offense':
-            return TrialAgent(index)
+            return TrialAgent(index, True)
         else:
-            return DefensiveTrialAgent(index)
+            return TrialAgent(index, False)
 
 
 
@@ -60,8 +60,16 @@ class TrialAgent(DefensiveReflexAgent):
     numAllies = None
     targetedFoods = {}
     
-    def __init__(self, index):
+    def __init__(self, index, offense):
         DefensiveReflexAgent.__init__(self, index)
+        if offense:
+            self.myNotFeatures = [ 'eatingEnemy','distanceToClosestEnemyAsGhostSquared', 'attackingEnemyAsGhost',
+                               'numberOfYourFoodsRemaining', 'homeTerritory', 'distanceToClosestEnemyAsGhost']
+        else:
+            self.myNotFeatures = [ 'distancetoClosestEnemyFoodSquared', 'gettingEaten'
+                                   'distanceToClosestEnemyAsPacmanSquared', 'attackingEnemyAsPacman',
+                                   'numberOfEnemyFoodsRemaining','distancetoClosestEnemyFood','enemyTerritory',
+                                   'distanceToClosestEnemyAsPacman','enemyGhostClose']
         
         
     def registerInitialState(self, gameState):
@@ -285,6 +293,8 @@ class TrialAgent(DefensiveReflexAgent):
         
     def evaluateDeep(self, gameState, depth):
         actions = gameState.getLegalActions(self.index)
+        actions.remove(Directions.STOP)
+        
         values = list()
         maxValue = -9999999999999999
         bestAction = None
@@ -419,19 +429,16 @@ class TrialAgent(DefensiveReflexAgent):
             if meClosest: enemyTerritoryCount +=5
 
         
-        features['movesCloserToEnemyFood'] = 1.0 if minTheirDistance < minOldDistance else 0.0
-        features['percentOfOurFoodLeft'] = (float)(numOurFood) / (float)(self.startingFood)
-        features['percentOfTheirFoodLeft'] = (float)(numEnemyFood) / (float)(self.theirStartingFood)
-        
+        features['numberOfEnemyFoodsRemaining'] = numEnemyFood
+        features['numberOfYourFoodsRemaining'] = numOurFood
         features['distancetoClosestEnemyFoodSquared'] = minTheirDistance ** 2
         features['homeTerritory'] = homeTerritoryCount
         #netDist = self.netDistanceToFriends(successor)
         
-        features['enemyTerritory'] = enemyTerritoryCount
         if features['eatingFood'] > 0:
-            features['movesCloserToEnemyFood'] = 1.0 
             features['distancetoClosestEnemyFoodSquared'] = 0
-            features['enemyTerritory'] += 1
+            enemyTerritoryCount += 1
+        features['enemyTerritory'] = enemyTerritoryCount
         
     
     def getFeatures(self, gameState, action):
@@ -470,11 +477,9 @@ class TrialAgent(DefensiveReflexAgent):
             if oldEnemyPos == nextPosition:
                 if self.isGhost(successor) and self.getScaredTimer(successor) <= 0:
                     features['eatingEnemy'] = 1.0
-                    print "would be eaten by enemy"
                 
         if self.getMazeDistance(position, nextPosition) > 1:
             features['gettingEaten'] = 1.0
-            print "gettingEaten"
 
         attackingEnemy = closestEnemyPos ==  nextPosition
         
@@ -492,6 +497,17 @@ class TrialAgent(DefensiveReflexAgent):
                 features['distanceToClosestEnemyAsPacmanSquared'] = closestEnemy ** 2
                 if features['distanceToClosestEnemyAsPacmanSquared'] <= 9:
                     features['enemyGhostClose'] = 1.0 
+                
+        
+        features = self.pruneFeatures(features)
+        if 'eatingEnemy' in self.myNotFeatures: print features 
+        
+        return features
+    
+    def pruneFeatures(self, features):
+        for feature, value in features.items():
+            if feature in self.myNotFeatures:
+                features[feature] = 0
                 
         return features
     
@@ -523,7 +539,6 @@ class TrialAgent(DefensiveReflexAgent):
             if oldEnemyPos == self.getPosition(state):
                 if self.isGhost(state) and self.getScaredTimer(state) <= 0:
                     reward += 25
-                    print "reward enemy eaten"
         
         
         if(self.getMazeDistance(self.getPosition(state), self.getPosition(prevState)) > 1):
@@ -546,17 +561,14 @@ class TrialAgent(DefensiveReflexAgent):
         if feature in regularMutation.aggressiveDWeightsDict:
            return regularMutation.aggressiveDWeightsDict[feature]
         
-        if feature == 'degreesOfFreedom': return 1
-        if feature == 'percentOfOurFoodLeft': return 1
-        if feature == 'percentOfTheirFoodLeft': return -1
+        if feature == 'degreesOfFreedom': return 0
         if feature == 'distancetoClosestEnemyFoodSquared': return -1
-        if feature == 'movesCloserToEnemyFood': return 50
         if feature == 'eatingFood': return 100
         if feature == 'eatingEnemy': return 100
         if feature == 'gettingEaten': return -10
         if feature == 'notMoving': return -1.0
         if feature == 'avgFriendDist': return 1.0
-        if feature == 'successorScore': return 10
+        if feature == 'successorScore': return 0
         if feature == 'reverse': return -1.0
         if feature == 'distanceToClosestEnemyAsGhostSquared': return -1.0
         if feature == 'distanceToClosestEnemyAsPacmanSquared': return 1.0
@@ -566,8 +578,8 @@ class TrialAgent(DefensiveReflexAgent):
         if feature == 'numberOfYourFoodsRemaining': return 1.0
         if feature == 'numberOfEnemyFoodsRemaining': return -1.0
         if feature == 'distancetoClosestEnemyFood': return -1.0
-        if feature == 'homeTerritory': return 1.0
-        if feature == 'enemyTerritory': return 1.0
+        if feature == 'homeTerritory': return 10
+        if feature == 'enemyTerritory': return 10
         if feature == 'distanceToClosestEnemyAsGhost': return -1.0
         if feature == 'distanceToClosestEnemyAsPacman': return 1.0
         if feature == 'enemyGhostClose': return -1.0
@@ -611,22 +623,24 @@ class TrialAgent(DefensiveReflexAgent):
 #                    counters.append(toDisplay) 
             self.displayDistributionsOverPositions(counters)
             
-        actions = gameState.getLegalActions(self.index)
-        values = [self.evaluate(gameState, a) for a in actions]
-        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
+        #actions = gameState.getLegalActions(self.index)
+        #values = [self.evaluate(gameState, a) for a in actions]
 
-        maxValue = max(values)
-        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+        #maxValue = max(values)
+        #bestActions = [a for a, v in zip(actions, values) if v == maxValue]
         #if util.flipCoin(TrialAgent.explorationRate):
          #   return random.choice(actions)
             
-        #valueActionPair = self.evaluateDeep(gameState, 0)
-        #action = valueActionPair[0]
-        action = random.choice(bestActions)    
+        valueActionPair = self.evaluateDeep(gameState, 0)
+        action = valueActionPair[0]
+        actions = self.getLegalActions(gameState)
+        #action = random.choice(bestActions)    
             
         self.update(gameState, action, self.getSuccessor(gameState, action))
         
-        while action == Directions.STOP:action = random.choice(actions)
+        while action == Directions.STOP:
+            action = random.choice(actions)
+            print "random"
         succ = self.getSuccessor(gameState, action)
         myPosition = succ.getAgentPosition(self.index)
         for enemy, dist in TrialAgent.enemyPositions.items():
