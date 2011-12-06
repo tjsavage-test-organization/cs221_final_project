@@ -614,24 +614,7 @@ class TrialAgent(DefensiveReflexAgent):
             self.infer(gameState)
             self.trackLastPos(gameState)
             
-            counters = list()
-        
-            counters.append(TrialAgent.enemyPositions[self.enemyIndices[0]]) 
-#            if TrialAgent.lastSightings[self.enemyIndices[0]] is not 0 :
-#                timeSince = TrialAgent.lastSightings[self.enemyIndices[0]][1]
-#                if timeSince < 50:
-#                    toDisplay = TrialAgent.lastSightings[self.enemyIndices[0]][0].copy()
-#                    counters.append(toDisplay) 
-            self.displayDistributionsOverPositions(counters)
-            
-        #actions = gameState.getLegalActions(self.index)
-        #values = [self.evaluate(gameState, a) for a in actions]
-
-        #maxValue = max(values)
-        #bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-        #if util.flipCoin(TrialAgent.explorationRate):
-         #   return random.choice(actions)
-            
+       
         valueActionPair = self.evaluateDeep(gameState, 0)
         action = valueActionPair[0]
         actions = self.getLegalActions(gameState)
