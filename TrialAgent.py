@@ -234,7 +234,7 @@ class TrialAgent(DefensiveReflexAgent):
                         TrialAgent.enemyPositions[enemy][pos] += math.log1p(posDist[pos])
                         TrialAgent.enemyPositions[enemy].normalize()
                         TrialAgent.lastSightings[enemy] = 0
-            elif len(dist) < 30:
+            elif len(dist) < 50:
                 newPosDist = util.Counter()
                 for pos in dist:
                     legalNext = TrialAgent.legalNextPositions[pos]
