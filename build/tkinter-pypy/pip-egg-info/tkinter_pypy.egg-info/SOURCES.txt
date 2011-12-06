@@ -1,0 +1,9 @@
+MANIFEST.in
+setup.cfg
+pip-egg-info/tkinter_pypy.egg-info/PKG-INFO
+pip-egg-info/tkinter_pypy.egg-info/SOURCES.txt
+pip-egg-info/tkinter_pypy.egg-info/dependency_links.txt
+pip-egg-info/tkinter_pypy.egg-info/top_level.txt
+src/_tkinter.c
+src/tkappinit.c
+src/tkinter.h
