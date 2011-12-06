@@ -58,6 +58,7 @@ class TrialAgent(DefensiveReflexAgent):
     currentGoal = util.Counter()
     lastAgent = None
     numAllies = None
+    targetedFoods = {}
     
     def __init__(self, index):
         DefensiveReflexAgent.__init__(self, index)
@@ -330,7 +331,14 @@ class TrialAgent(DefensiveReflexAgent):
     def updateFoodFeatures(self, gameState, successor, features):
         nextPosition = self.getPosition(successor)
         ourFood = self.getFoodYouAreDefending(successor).asList()
-        enemyFood = self.getFood(successor).asList()
+        foodsTargetedByNotMe = [foodPos for index, foodPos in TrialAgent.targetedFoods.items() if index != self.index]
+        foodDistDict = {}
+        for foodPos in self.getFood(successor).asList():
+            distancesFromFoodToTargetedFood = [self.getMazeDistance(foodPos, tfoodPos) for tfoodPos in foodsTargetedByNotMe]
+            if not len(distancesFromFoodToTargetedFood) or min(distancesFromFoodToTargetedFood) > 3:
+                foodDistDict[foodPos] = self.getMazeDistance(nextPosition, foodPos)
+        
+        enemyFood = foodDistDict.keys()
         oldEnemyFood = self.getFood(gameState).asList()
         
         
@@ -687,8 +695,8 @@ class DefensiveTrialAgent(TrialAgent):
         features['successorScore'] = self.getScore(successor)
                 
         #computes territory
-        terr = self.getTerritoryAllies(successor)
-        features['homeTerritory'] = len(terr)
+        #terr = self.getTerritoryAllies(successor)
+        #features['homeTerritory'] = len(terr)
         netDist = self.netDistanceToFriends(successor)
         #features['netDistance'] = netDist
                 
