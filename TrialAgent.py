@@ -412,8 +412,8 @@ class TrialAgent(DefensiveReflexAgent):
                     break
             if meClosest: enemyTerritoryCount +=1
         
-        if food:
-            TrialAgent.targetedFoods[self.index] = food
+        if closest:
+            TrialAgent.targetedFoods[self.index] = closest
             
         for capsule in self.getCapsules(successor):
             distance = self.getMazeDistance(nextPosition, capsule)
@@ -694,7 +694,7 @@ class TrialAgent(DefensiveReflexAgent):
             oldAction = action
             while action is not oldAction:
                 action = random.choice(actions)
-        print "time " + str(time.time() - start)
+        #print "time " + str(time.time() - start)
         if time.time() - start >= 0.95: print "too long!!!!!!!!"
         return action
         
