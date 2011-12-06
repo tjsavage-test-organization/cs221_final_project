@@ -333,7 +333,6 @@ class TrialAgent(DefensiveReflexAgent):
         enemyFood = self.getFood(successor).asList()
         oldEnemyFood = self.getFood(gameState).asList()
         
-        
         numEnemyFood = 0
         numOurFood = 0
         numOldFood = 0
@@ -354,7 +353,7 @@ class TrialAgent(DefensiveReflexAgent):
         
 
         others = self.getListOfEnemyPos(successor)
-        others.extend(self.getTeamPositions(successor))
+        #others.extend(self.getTeamPositions(successor))
         homeTerritoryCount = 0
         
         closest = None
@@ -395,7 +394,17 @@ class TrialAgent(DefensiveReflexAgent):
                     break
             if meClosest: enemyTerritoryCount +=1
             
-        features['']
+        for capsule in self.getCapsules(successor):
+            distance = self.getMazeDistance(nextPosition, capsule)
+            meClosest = True
+            for otherPos in others:
+                hisDistance = self.getMazeDistance(otherPos, capsule)
+                if distance > hisDistance:
+                    meClosest = False 
+                    break
+            if meClosest: enemyTerritoryCount +=5
+
+        
         features['movesCloserToEnemyFood'] = 1.0 if minTheirDistance < minOldDistance else 0.0
         features['percentOfOurFoodLeft'] = (float)(numOurFood) / (float)(self.startingFood)
         features['percentOfTheirFoodLeft'] = (float)(numEnemyFood) / (float)(self.theirStartingFood)
@@ -422,6 +431,9 @@ class TrialAgent(DefensiveReflexAgent):
         nextPositionAsInt = self.getPositionAsInt(successor)
         
         
+        
+        
+        
         #oldFeatures = self.getMutationFeatures(gameState, action)
         
         #features['isAgentInEnemyTerritory'] = self.isPositionInEnemyTerritory(successor, position)
@@ -440,8 +452,9 @@ class TrialAgent(DefensiveReflexAgent):
             
             avgFriendDist /= (len(self.getTeam(gameState)) - 1)
             """   
-        features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (float)(TrialAgent.numAllies)
-        
+        closestFriend = min(  [self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)] )
+        #features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (float)(TrialAgent.numAllies)
+        features['closestFriend'] = closestFriend 
             
         features['successorScore'] = self.getScore(successor)
                 
@@ -450,7 +463,6 @@ class TrialAgent(DefensiveReflexAgent):
                 
         rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
         features['reverse'] = 1.0 if action == rev else 0.0
-                
             # Compute distance to the nearest food
         """foodList = self.getFood(successor).asList()
         features['numFood'] = len(foodList)
@@ -470,18 +482,22 @@ class TrialAgent(DefensiveReflexAgent):
 
         attackingEnemy = closestEnemyPos ==  nextPosition
         
-        features['attackingEnemyAsGhost'] = 1.0 if closestEnemyPos ==  nextPosition else 0.0
-        features['attackingEnemyAsPacman'] = 1.0 if closestEnemyPos ==  nextPosition else 0.0
+        features['attackingEnemyAsGhost'] = 1.0 if self.isGhost(successor) and attackingEnemy else 0.0
+        features['attackingEnemyAsPacman'] = 1.0 if self.isPacman(successor) and attackingEnemy else 0.0
         
         if attackingEnemy:
             features['distanceToClosestEnemyAsGhostSquared'] = 0        
             features['distanceToClosestEnemyAsPacmanSquared'] = 0
         else:
-            features['distanceToClosestEnemyAsGhostSquared'] = closestEnemy ** 2 if self.isGhost(gameState) and closestEnemy <= 5 else 36
-            features['distanceToClosestEnemyAsPacmanSquared'] = closestEnemy ** 2 if self.isPacman(gameState) and closestEnemy <= 3 else 16
-        
-        
-        features['enemyGhostClose'] = 1.0 if features['distanceToClosestEnemyAsPacman'] < 3 and features['distanceToClosestEnemyAsPacman'] > 0 else 0.0
+            if self.isGhost(successor):
+                features['distanceToClosestEnemyAsGhostSquared'] = closestEnemy ** 2 if closestEnemy <= 5 else 36
+                
+            else:
+                features['distanceToClosestEnemyAsPacmanSquared'] = closestEnemy ** 2 if closestEnemy <= 3 else 16
+                if features['distanceToClosestEnemyAsPacmanSquared'] <= 4:
+                    features['enemyGhostClose'] = 1.0 
+                
+            
         #print features
         return features
     
@@ -539,7 +555,7 @@ class TrialAgent(DefensiveReflexAgent):
         if feature in regularMutation.aggressiveDWeightsDict:
            return regularMutation.aggressiveDWeightsDict[feature]
         
-        if feature == 'degreesOfFreedom': return 1
+        if feature == 'degreesOfFreedom': return 10
         if feature == 'percentOfOurFoodLeft': return 20
         if feature == 'percentOfTheirFoodLeft': return -20
         if feature == 'distancetoClosestEnemyFoodSquared': return -25
@@ -552,8 +568,8 @@ class TrialAgent(DefensiveReflexAgent):
         if feature == 'distanceToClosestEnemyAsGhostSquared': return -20
         if feature == 'distanceToClosestEnemyAsPacmanSquared': return 50
         #if feature == 'enemyGhostClose': return -50
-        if feature == 'attackingEnemyAsGhost': return 1000
-        if feature == 'attackingEnemyAsPacman': return -50
+        if feature == 'attackingEnemyAsGhost': return -50
+        if feature == 'attackingEnemyAsPacman': return 50
         if feature == 'degreesOfFreedom': return 5
         if feature == 'numberOfYourFoodsRemaining': return 20
         if feature == 'numberOfEnemyFoodsRemaining': return -20
@@ -564,10 +580,11 @@ class TrialAgent(DefensiveReflexAgent):
         if feature == 'successorScore': return 1.25
         if feature == 'homeTerritory': return 10
         if feature == 'enemyTerritory': return 10
-        if feature == 'reverse': return -50
+        if feature == 'reverse': return -100
         if feature == 'distanceToClosestEnemyAsGhost': return -25
         if feature == 'distanceToClosestEnemyAsPacman': return 2.5
         if feature == 'enemyGhostClose': return 35
+        if feature == 'closestFriend': return 20
         
         return 0
     
@@ -638,10 +655,20 @@ class TrialAgent(DefensiveReflexAgent):
         for enemy, dist in TrialAgent.enemyPositions.items():
             defPos = gameState.getAgentPosition(enemy)
             
-            if defPos is not None:
-                if defPos == myPosition:
-                    print "eaten " + str(enemy)
-                    TrialAgent.lastSightings[enemy] = 0
+            if defPos == myPosition:
+                print "eaten " + str(enemy)
+                TrialAgent.lastSightings[enemy] = 0
+        
+        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+        if action == rev: print "reversing"
+        if action == rev: action = random.choice(actions)
+        
+        if len(succ.getLegalActions(self.index)) <= 2 and myPosition not in self.getFood(gameState).asList():
+            print "in corner with no food"
+            oldAction = action
+            while action is not oldAction:
+                action = random.choice(actions)
+            
         print "time " + str(time.time() - start)
         if time.time() - start >= 0.95: print "too long!!!!!!!!"
         return action
@@ -681,15 +708,14 @@ class DefensiveTrialAgent(TrialAgent):
         
         features = util.Counter()
   
-        features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (len(self.getTeam(gameState)) - 1)
+        #features['avgFriendDist'] = sum([self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)]) / (len(self.getTeam(gameState)) - 1)
         
-            
+        closestFriend = min(  [self.getMazeDistance(position, fpos) for fpos in self.getTeamPositions(successor)] )
+        features['closestFriend'] = closestFriend 
+           
         features['successorScore'] = self.getScore(successor)
                 
         #computes territory
-        terr = self.getTerritoryAllies(successor)
-        features['homeTerritory'] = len(terr)
-        netDist = self.netDistanceToFriends(successor)
         #features['netDistance'] = netDist
                 
         rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
@@ -708,7 +734,7 @@ class DefensiveTrialAgent(TrialAgent):
         
         #print 'OUR FOOD LEFT: ' + str(features['numberOfYourFoodsRemaining'])
         
-        features['distanceToClosestYouFood'] = min(defenseFoodDists)
+        self.updateFoodFeatures(gameState, successor, features)
         
         features['eatingFood'] = 1.0 if self.isPacman(successor) and gameState.hasFood(nextPositionAsInt[0], nextPositionAsInt[1]) else 0.0
         
