@@ -177,7 +177,9 @@ class TrialAgent(DefensiveReflexAgent):
             newBeliefs.normalize()
             newEnemyPos[enemy] = newBeliefs
         TrialAgent.enemyPositions = newEnemyPos
+    
             
+                
                 
     def trackLastPos(self, gameState):
         for enemy in TrialAgent.enemyIndices:
@@ -194,10 +196,11 @@ class TrialAgent(DefensiveReflexAgent):
                 timeSinceObs = TrialAgent.lastSightings[enemy][1]
                 posOriginalObs =  TrialAgent.lastSightings[enemy][2]
                 newPosDist = util.Counter()
-                for pos in posDist :
-                    if timeSinceObs < 10:
+                
+                if timeSinceObs < 10:
+                    for pos in posDist :
                         legalNext = TrialAgent.legalNextPositions[pos]
-                        probPerState = 1.0/(len(legalNext) + len(posDist))
+                        probPerState = 1.0/(len(legalNext))
                         
                         pacman = False
                         for ally in TrialAgent.allyIndices:
@@ -205,35 +208,38 @@ class TrialAgent(DefensiveReflexAgent):
                             if pacman: break
                             
                         closestFood = 0
-                        if pacman: closestFood = self.getClosestFoodAll(gameState, pos)
-                        else: closestFood = self.getClosestFriendFood(gameState, pos)
-                        
-                        oldFoodDist = self.getMazeDistance(pos, closestFood)
-                        for newPos in legalNext:
-                            distance = self.getMazeDistance(newPos, closestFood)
-                            if distance <= oldFoodDist :
-                                newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + math.log1p(posDist[pos])
-                                TrialAgent.enemyPositions[enemy][newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + math.log1p(posDist[pos]) 
+                        if pacman: 
+                            closestFood = self.getClosestFoodAll(gameState, pos)
+                            oldFoodDist = self.getMazeDistance(pos, closestFood)
+                            for newPos in legalNext:
+                                distance = self.getMazeDistance(newPos, closestFood)
+                                if distance <= oldFoodDist :
+                                    newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + math.log1p(posDist[pos])
+                                    TrialAgent.enemyPositions[enemy][newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + math.log1p(posDist[pos]) 
+                        else :
+                            
+                            for newPos in legalNext:
+                                newPosDist[newPos] += math.log1p(probPerState) + math.log1p(posDist[pos])
+                                TrialAgent.enemyPositions[enemy][newPos] += math.log1p(probPerState) + math.log1p(posDist[pos])
                         newPosDist.normalize()
-                        TrialAgent.enemyPositions[enemy].normalize()
                         TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1,posOriginalObs )
-                    elif timeSinceObs < 20 :
-                        maxNumMoves = len(TrialAgent.enemyIndices) + int(timeSinceObs/len(TrialAgent.enemyIndices))
-                        maxXPos = posOriginalObs[0] + maxNumMoves
-                        minXPos = posOriginalObs[0] - maxNumMoves
-                        maxYPos = posOriginalObs[1] + maxNumMoves
-                        minYPos = posOriginalObs[1] - maxNumMoves
-                        for p in TrialAgent.legalPositions:
-                            if p[0] < maxXPos + 1 and p[0] > minXPos - 1 and p[1] < maxYPos + 1 and p[1] > minYPos - 1 :
-                                newPosDist[p] = 1.0
-                                TrialAgent.enemyPositions[enemy][p] += math.log1p(1/len(posDist)) 
-                        newPosDist.normalize()
-                        
-                        TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1, posOriginalObs)
-                    else:
+                elif timeSinceObs < 20 :
+                    maxNumMoves = len(TrialAgent.enemyIndices) + int(timeSinceObs/len(TrialAgent.enemyIndices))
+                    maxXPos = posOriginalObs[0] + maxNumMoves
+                    minXPos = posOriginalObs[0] - maxNumMoves
+                    maxYPos = posOriginalObs[1] + maxNumMoves
+                    minYPos = posOriginalObs[1] - maxNumMoves
+                    for p in TrialAgent.legalPositions:
+                        if p[0] < maxXPos + 1 and p[0] > minXPos - 1 and p[1] < maxYPos + 1 and p[1] > minYPos - 1 :
+                            newPosDist[p] = 1.0
+                            TrialAgent.enemyPositions[enemy][p] += math.log1p(1/len(posDist)) 
+                    newPosDist.normalize()    
+                    TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1, posOriginalObs)
+                else:
+                    for pos in posDist :
                         TrialAgent.enemyPositions[enemy][pos] += math.log1p(posDist[pos])
-                        TrialAgent.enemyPositions[enemy].normalize()
                         TrialAgent.lastSightings[enemy] = 0
+                TrialAgent.enemyPositions[enemy].normalize()
             elif len(dist) < 50:
                 newPosDist = util.Counter()
                 for pos in dist:
@@ -246,14 +252,17 @@ class TrialAgent(DefensiveReflexAgent):
                         if pacman: break
                             
                     closestFood = 0
-                    if pacman: closestFood = self.getClosestFoodAll(gameState, pos)
-                    else: closestFood = self.getClosestFriendFood(gameState, pos)
-                        
-                    oldFoodDist = self.getMazeDistance(pos, closestFood)
-                    for newPos in legalNext:
-                        distance = self.getMazeDistance(newPos, closestFood)
-                        if distance <= oldFoodDist :
-                            newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + dist[pos]
+                    if pacman: 
+                        closestFood = self.getClosestFoodAll(gameState, pos)
+                        oldFoodDist = self.getMazeDistance(pos, closestFood)
+                        for newPos in legalNext:
+                            distance = self.getMazeDistance(newPos, closestFood)
+                            if distance <= oldFoodDist :
+                                newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + dist[pos]
+                    else :
+                        for newPos in legalNext:
+                            newPosDist[newPos] += math.log1p(probPerState) + math.log1p(dist[pos])
+                    
                 newPosDist.normalize()
                 TrialAgent.enemyPositions[enemy] = newPosDist
 #                counters = list()
