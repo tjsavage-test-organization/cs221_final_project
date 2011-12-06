@@ -212,13 +212,13 @@ class TrialAgent(DefensiveReflexAgent):
                         for newPos in legalNext:
                             distance = self.getMazeDistance(newPos, closestFood)
                             if distance <= oldFoodDist :
-                                newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001))
-                                TrialAgent.enemyPositions[enemy][newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) 
+                                newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + math.log1p(posDist[pos])
+                                TrialAgent.enemyPositions[enemy][newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + math.log1p(posDist[pos]) 
                         newPosDist.normalize()
                         TrialAgent.enemyPositions[enemy].normalize()
                         TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1,posOriginalObs )
                     elif timeSinceObs < 20 :
-                        maxNumMoves = 1 + int(timeSinceObs/len(TrialAgent.enemyIndices))
+                        maxNumMoves = len(TrialAgent.enemyIndices) + int(timeSinceObs/len(TrialAgent.enemyIndices))
                         maxXPos = posOriginalObs[0] + maxNumMoves
                         minXPos = posOriginalObs[0] - maxNumMoves
                         maxYPos = posOriginalObs[1] + maxNumMoves
@@ -226,7 +226,7 @@ class TrialAgent(DefensiveReflexAgent):
                         for p in TrialAgent.legalPositions:
                             if p[0] < maxXPos + 1 and p[0] > minXPos - 1 and p[1] < maxYPos + 1 and p[1] > minYPos - 1 :
                                 newPosDist[p] = 1.0
-                                TrialAgent.enemyPositions[enemy][p] += math.log1p(1/len(posDist))
+                                TrialAgent.enemyPositions[enemy][p] += math.log1p(1/len(posDist)) 
                         newPosDist.normalize()
                         
                         TrialAgent.lastSightings[enemy] = (newPosDist, timeSinceObs + 1, posOriginalObs)
