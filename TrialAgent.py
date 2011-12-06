@@ -260,7 +260,7 @@ class TrialAgent(DefensiveReflexAgent):
                     for newPos in legalNext:
                         distance = self.getMazeDistance(newPos, closestFood)
                         if distance <= oldFoodDist :
-                            newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + dist[pos]
+                            newPosDist[newPos] += math.log1p(probPerState) + math.log1p(1.0/(distance + 0.0001)) + math.log1p(dist[pos])
                 newPosDist.normalize()
                 TrialAgent.enemyPositions[enemy] = newPosDist
 #                counters = list()
